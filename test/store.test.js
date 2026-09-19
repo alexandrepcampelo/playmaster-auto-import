@@ -45,3 +45,33 @@ test('publica itens prontos e registra entregas sem republicá-los',async()=>{
     await rm(directory,{recursive:true,force:true});
   }
 });
+
+test('corrige categoria, envia à lixeira, restaura e remove definitivamente',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'playmaster-auto-import-'));
+  try{
+    const store=new ImportStore({dataDir:directory,stationCode:'PM'});
+    await store.init();
+    const created=await store.create({fileName:'comercial.wav',category:'Músicas',status:'processing'});
+    await store.update(created.id,{status:'ready',processedPath:'/audio.mp3'});
+    const revised=await store.revise(created.id,{category:'Comerciais',title:'Comercial corrigido'});
+    assert.equal(revised.category,'Comerciais');
+    assert.equal(revised.title,'Comercial corrigido');
+
+    await store.trash(created.id);
+    assert.equal(store.list().length,0);
+    assert.equal(store.trashed().length,1);
+    assert.equal(store.counts().deleted,1);
+    assert.equal(store.ready().length,0);
+
+    const restored=await store.restore(created.id);
+    assert.equal(restored.status,'ready');
+    assert.equal(store.list().length,1);
+
+    await store.trash(created.id);
+    const removed=await store.remove(created.id);
+    assert.equal(removed.id,created.id);
+    assert.equal(store.findById(created.id),null);
+  }finally{
+    await rm(directory,{recursive:true,force:true});
+  }
+});

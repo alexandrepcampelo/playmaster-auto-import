@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { createReadStream } from 'node:fs';
 import { readFile,rm,stat } from 'node:fs/promises';
-import { extname,join,normalize } from 'node:path';
+import { extname,join,normalize,resolve,sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { ImportStore } from './store.js';
@@ -19,6 +19,7 @@ await importer.init();
 const loginLimiter=new LoginLimiter();
 
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
+const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros']);
 
 function json(res,status,payload){
   res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -62,8 +63,22 @@ function requireReadAccess(req,res){
   return false;
 }
 
+function requirePanelSession(req,res){
+  if(panelSession(req)) return true;
+  json(res,401,{error:'Sessão administrativa necessária.'});
+  return false;
+}
+
+async function removeStoredFile(filePath,baseDir){
+  if(!filePath) return;
+  const target=resolve(filePath);
+  const base=resolve(baseDir);
+  if(target!==base && !target.startsWith(`${base}${sep}`)) throw new Error('Caminho de armazenamento inválido.');
+  await rm(target,{force:true});
+}
+
 async function streamProcessedAudio(req,res,item){
-  if(!item?.processedPath) return json(res,404,{error:'Áudio processado ainda não está disponível.'});
+  if(!item?.processedPath || item.status==='deleted') return json(res,404,{error:'Áudio processado ainda não está disponível.'});
   const info=await stat(item.processedPath);
   const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
   const headers={'content-type':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
@@ -121,6 +136,55 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/imports' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;
       return json(res,200,{items:store.list(url.searchParams.get('limit'))});
+    }
+    if(url.pathname==='/api/trash' && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      return json(res,200,{items:store.trashed(url.searchParams.get('limit'))});
+    }
+    const importItemMatch=url.pathname.match(/^\/api\/imports\/([^/]+)$/);
+    if(importItemMatch && req.method==='PATCH'){
+      if(!requirePanelSession(req,res)) return;
+      const input=await body(req);
+      const patch={};
+      if(Object.hasOwn(input,'category')){
+        const category=String(input.category||'').trim();
+        if(!audioCategories.has(category)) return json(res,400,{error:'Pasta de áudio inválida.'});
+        patch.category=category;
+      }
+      for(const [key,max] of [['title',200],['artist',200],['album',200],['year',12]]){
+        if(Object.hasOwn(input,key)) patch[key]=String(input[key]??'').trim().slice(0,max);
+      }
+      if(!Object.keys(patch).length) return json(res,400,{error:'Nenhuma alteração informada.'});
+      const item=await store.revise(decodeURIComponent(importItemMatch[1]),patch);
+      return item?json(res,200,{ok:true,item}):json(res,404,{error:'Áudio não encontrado.'});
+    }
+    if(importItemMatch && req.method==='DELETE'){
+      if(!requirePanelSession(req,res)) return;
+      const item=await store.trash(decodeURIComponent(importItemMatch[1]));
+      return item?json(res,200,{ok:true,item}):json(res,404,{error:'Áudio não encontrado.'});
+    }
+    const reprocessMatch=url.pathname.match(/^\/api\/imports\/([^/]+)\/reprocess$/);
+    if(reprocessMatch && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const result=await importer.reprocess(decodeURIComponent(reprocessMatch[1]),{background:true});
+      return result?json(res,202,{ok:true,...result}):json(res,404,{error:'Áudio original não encontrado para reprocessamento.'});
+    }
+    const restoreMatch=url.pathname.match(/^\/api\/trash\/([^/]+)\/restore$/);
+    if(restoreMatch && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const item=await store.restore(decodeURIComponent(restoreMatch[1]));
+      return item?json(res,200,{ok:true,item}):json(res,404,{error:'Item da Lixeira não encontrado.'});
+    }
+    const trashItemMatch=url.pathname.match(/^\/api\/trash\/([^/]+)$/);
+    if(trashItemMatch && req.method==='DELETE'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(trashItemMatch[1]);
+      const item=store.findById(id);
+      if(!item || item.status!=='deleted') return json(res,404,{error:'Item da Lixeira não encontrado.'});
+      await removeStoredFile(item.originalPath,config.originalsDir);
+      await removeStoredFile(item.processedPath,config.processedDir);
+      await store.remove(id);
+      return json(res,200,{ok:true,id});
     }
     if(url.pathname==='/api/library' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;

@@ -149,6 +149,20 @@ export class AutoImporter{
     }
   }
 
+  async reprocess(id,{background=true}={}){
+    const item=await this.store.markForReprocess(id);
+    if(!item) return null;
+    const processing=this.processQueue.then(async()=>{
+      await access(item.originalPath);
+      return this.process({item,originalPath:item.originalPath});
+    }).catch(async error=>{
+      const failed=await this.store.update(item.id,{status:'error',processingStage:'error',error:error.message});
+      return {item:failed,duplicate:false};
+    });
+    this.processQueue=processing.catch(()=>{});
+    return background?{item,queued:true}:processing;
+  }
+
   stop(){
     if(this.timer) clearInterval(this.timer);
   }

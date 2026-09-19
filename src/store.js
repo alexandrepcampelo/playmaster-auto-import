@@ -6,7 +6,7 @@ export class ImportStore{
     this.dataDir=dataDir;
     this.stationCode=stationCode;
     this.filePath=join(dataDir,'imports.json');
-    this.state={version:1,counter:0,items:[]};
+    this.state={version:3,counter:0,items:[]};
     this.writeQueue=Promise.resolve();
   }
 
@@ -15,12 +15,14 @@ export class ImportStore{
     try{
       const saved=JSON.parse(await readFile(this.filePath,'utf8'));
       if(saved && Array.isArray(saved.items)) this.state={
-        version:2,
+        version:3,
         counter:Number(saved.counter)||0,
         items:saved.items.map(item=>({
           ...item,
           publishedAt:item.publishedAt||(item.status==='ready'?(item.updatedAt||item.createdAt):''),
-          deliveries:item.deliveries&&typeof item.deliveries==='object'?item.deliveries:{}
+          deliveries:item.deliveries&&typeof item.deliveries==='object'?item.deliveries:{},
+          deletedAt:String(item.deletedAt||''),
+          deletedFromStatus:String(item.deletedFromStatus||'')
         }))
       };
     }catch(error){
@@ -30,7 +32,11 @@ export class ImportStore{
   }
 
   list(limit=100){
-    return this.state.items.slice(-Math.max(1,Math.min(Number(limit)||100,500))).reverse();
+    return this.state.items.filter(item=>item.status!=='deleted').slice(-Math.max(1,Math.min(Number(limit)||100,500))).reverse();
+  }
+
+  trashed(limit=100){
+    return this.state.items.filter(item=>item.status==='deleted').sort((left,right)=>String(right.deletedAt).localeCompare(String(left.deletedAt))).slice(0,Math.max(1,Math.min(Number(limit)||100,500)));
   }
 
   findByChecksum(checksum){
@@ -57,10 +63,14 @@ export class ImportStore{
 
   counts(){
     return this.state.items.reduce((result,item)=>{
+      if(item.status==='deleted'){
+        result.deleted+=1;
+        return result;
+      }
       result.total+=1;
       result[item.status]=(result[item.status]||0)+1;
       return result;
-    },{total:0,received:0,processing:0,ready:0,error:0});
+    },{total:0,received:0,processing:0,ready:0,error:0,deleted:0});
   }
 
   async create(input){
@@ -93,6 +103,8 @@ export class ImportStore{
       error:'',
       publishedAt:'',
       deliveries:{},
+      deletedAt:'',
+      deletedFromStatus:'',
       createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString()
     };
@@ -123,6 +135,67 @@ export class ImportStore{
     item.deliveries[consumer]={status,message:String(message||''),updatedAt:new Date().toISOString()};
     await this.persist();
     return item.deliveries[consumer];
+  }
+
+  async revise(id,patch){
+    const item=this.findById(id);
+    if(!item || item.status==='deleted') return null;
+    const allowed=['category','title','artist','album','year'];
+    for(const key of allowed){
+      if(Object.hasOwn(patch,key)) item[key]=String(patch[key]??'').trim();
+    }
+    item.updatedAt=new Date().toISOString();
+    if(item.status==='ready') item.publishedAt=item.updatedAt;
+    item.deliveries={};
+    await this.persist();
+    return item;
+  }
+
+  async trash(id){
+    const item=this.findById(id);
+    if(!item || item.status==='deleted') return null;
+    item.deletedFromStatus=item.status;
+    item.status='deleted';
+    item.deletedAt=new Date().toISOString();
+    item.updatedAt=item.deletedAt;
+    await this.persist();
+    return item;
+  }
+
+  async restore(id){
+    const item=this.findById(id);
+    if(!item || item.status!=='deleted') return null;
+    const restoredStatus=['ready','error','received','processing'].includes(item.deletedFromStatus)?item.deletedFromStatus:(item.processedPath?'ready':'error');
+    item.status=restoredStatus;
+    item.processingStage=restoredStatus==='ready'?'ready':item.processingStage;
+    item.deletedAt='';
+    item.deletedFromStatus='';
+    item.updatedAt=new Date().toISOString();
+    if(restoredStatus==='ready') item.publishedAt=item.updatedAt;
+    item.deliveries={};
+    await this.persist();
+    return item;
+  }
+
+  async markForReprocess(id){
+    const item=this.findById(id);
+    if(!item || item.status==='deleted' || !item.originalPath) return null;
+    item.status='processing';
+    item.processingStage='analyzing';
+    item.error='';
+    item.publishedAt='';
+    item.deliveries={};
+    item.updatedAt=new Date().toISOString();
+    await this.persist();
+    return item;
+  }
+
+  async remove(id){
+    const index=this.state.items.findIndex(item=>item.id===id && item.status==='deleted');
+    if(index<0) return null;
+    const [item]=this.state.items.splice(index,1);
+    await this.persist();
+    return item;
   }
 
   persist(){

@@ -18,7 +18,7 @@ function escapeText(value){
 }
 
 function statusLabel(status){
-  return ({received:'Recebido',processing:'Processando',ready:'Pronto',error:'Erro'})[status]||status;
+  return ({received:'Recebido',processing:'Processando',ready:'Pronto',error:'Erro',deleted:'Na Lixeira'})[status]||status;
 }
 
 function stageLabel(item){
@@ -46,6 +46,10 @@ function metric(value,suffix=''){
   return Number.isFinite(number)?`${number.toFixed(1)}${suffix}`:'—';
 }
 
+function categoryClass(category){
+  return String(category||'Outros').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-');
+}
+
 function itemTemplate(item){
   const progress=stageProgress(item);
   const state=item.status==='ready'?'ready':item.status==='error'?'error':'working';
@@ -54,10 +58,17 @@ function itemTemplate(item){
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
   return `<div class="process-item ${state}">
     <div class="process-head">
-      <span class="item-icon category-${escapeText(item.category).toLowerCase().replace(/[^a-z0-9]/g,'-')}">♫</span>
+      <span class="item-icon category-${categoryClass(item.category)}">♫</span>
       <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)} · ${escapeText(format)}</small></span>
       <span class="process-status ${state}">${escapeText(stageLabel(item))}</span>
       ${item.status==='ready' && item.processedPath?`<button class="play-audio" type="button" data-url="${escapeText(audioUrl)}">▶ Ouvir</button>`:`<b class="process-percent">${progress}%</b>`}
+      <button class="item-menu-btn" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Opções de ${escapeText(title)}" aria-expanded="false">•••</button>
+    </div>
+    <div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
+      <button type="button" data-action="move" data-id="${escapeText(item.id)}"><span>↪</span>Mover para outra pasta</button>
+      <button type="button" data-action="edit" data-id="${escapeText(item.id)}"><span>✎</span>Editar informações</button>
+      <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
+      <button class="danger" type="button" data-action="trash" data-id="${escapeText(item.id)}"><span>♲</span>Excluir da biblioteca</button>
     </div>
     ${item.status==='ready'?`<div class="metrics">
       <span><small>DURAÇÃO</small><strong>${formatDuration(item.duration,true)}</strong></span>
@@ -72,6 +83,21 @@ function itemTemplate(item){
   </div>`;
 }
 
+function formatDate(value){
+  if(!value) return '—';
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'—':date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+}
+
+function trashTemplate(item){
+  const title=item.title||item.fileName;
+  return `<div class="trash-item">
+    <span class="item-icon category-${categoryClass(item.category)}">♫</span>
+    <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)} · excluído em ${escapeText(formatDate(item.deletedAt))}</small></span>
+    <div class="trash-actions"><button type="button" data-action="restore" data-id="${escapeText(item.id)}">↶ Restaurar</button><button class="danger" type="button" data-action="purge" data-id="${escapeText(item.id)}">Excluir definitivamente</button></div>
+  </div>`;
+}
+
 function encodeMetadata(value){
   const bytes=new TextEncoder().encode(value);
   let binary='';
@@ -81,6 +107,9 @@ function encodeMetadata(value){
 
 const supportedAudioExtensions=['.mp3','.wav','.flac','.aac','.m4a','.ogg'];
 let importMode='files';
+let currentLibraryView='active';
+let currentItems=[];
+let manageMode='move';
 
 function selectedFiles(){
   const files=[...$('#importFiles').files];
@@ -165,7 +194,8 @@ async function refresh(){
   const button=$('#refresh');
   button.disabled=true;
   try{
-    const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch('/api/imports?limit=30')]);
+    const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=30';
+    const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
       return;
@@ -176,13 +206,17 @@ async function refresh(){
     $('#total').textContent=status.counts.total;
     $('#processing').textContent=status.counts.processing+status.counts.received;
     $('#ready').textContent=status.counts.ready;
-    $('#errors').textContent=status.counts.error;
+    $('#trashCount').textContent=status.counts.deleted||0;
+    $('#trashTabCount').textContent=status.counts.deleted||0;
     $('#outputProfile').textContent=status.audioProfile.output;
     $('#normalizationProfile').textContent=`${status.audioProfile.targetLufs} LUFS · pico máximo ${status.audioProfile.truePeakDb} dBTP`;
     $('#originals').textContent=status.originalsDir;
     $('#processed').textContent=status.processedDir;
+    currentItems=items;
     const container=$('#items');
-    container.innerHTML=items.length?items.map(itemTemplate).join(''):'<p class="empty">Nenhum áudio recebido até o momento.</p>';
+    container.innerHTML=items.length
+      ?items.map(currentLibraryView==='trash'?trashTemplate:itemTemplate).join('')
+      :`<p class="empty">${currentLibraryView==='trash'?'A Lixeira está vazia.':'Nenhum áudio recebido até o momento.'}</p>`;
     document.querySelector('.connection span').textContent='Serviço conectado';
     document.querySelector('.connection i').style.background='#31ef72';
   }catch(error){
@@ -214,6 +248,137 @@ $('#items').addEventListener('click',async event=>{
   }
 });
 $('#previewPlayer').addEventListener('ended',()=>{ if(activeAudioButton) activeAudioButton.textContent='▶ Ouvir'; });
+
+function closeItemMenus(except=''){
+  document.querySelectorAll('.item-actions').forEach(menu=>{
+    if(menu.dataset.menuFor!==except) menu.hidden=true;
+  });
+  document.querySelectorAll('.item-menu-btn').forEach(button=>{
+    if(button.dataset.menuId!==except) button.setAttribute('aria-expanded','false');
+  });
+}
+
+function findCurrentItem(id){
+  return currentItems.find(item=>item.id===id);
+}
+
+function openManage(item,mode){
+  if(!item) return;
+  manageMode=mode;
+  $('#manageId').value=item.id;
+  $('#manageError').textContent='';
+  $('#moveFields').hidden=mode!=='move';
+  $('#editFields').hidden=mode!=='edit';
+  $('#manageTitle').textContent=mode==='move'?'Mover para outra pasta':'Editar informações';
+  $('#manageDescription').textContent=mode==='move'?'Corrija a classificação sem reenviar ou reprocessar o áudio.':'Atualize os dados exibidos na biblioteca e no Studio Air.';
+  $('#manageCategory').value=item.category;
+  $('#manageTitleInput').value=item.title||item.fileName||'';
+  $('#manageArtist').value=item.artist||'';
+  $('#manageAlbum').value=item.album||'';
+  $('#manageYear').value=item.year||'';
+  $('#manageModal').hidden=false;
+  document.body.classList.add('modal-open');
+}
+
+function closeManage(){
+  $('#manageModal').hidden=true;
+  document.body.classList.remove('modal-open');
+}
+
+async function actionRequest(url,options={}){
+  const response=await fetch(url,options);
+  let result={};
+  try{result=await response.json();}catch{}
+  if(response.status===401){
+    showLogin('Sua sessão expirou. Entre novamente.');
+    throw new Error('Sessão expirada.');
+  }
+  if(!response.ok) throw new Error(result.error||`Falha HTTP ${response.status}`);
+  return result;
+}
+
+$('#items').addEventListener('click',async event=>{
+  const menuButton=event.target.closest('.item-menu-btn');
+  if(menuButton){
+    event.stopPropagation();
+    const id=menuButton.dataset.menuId;
+    const menu=[...document.querySelectorAll('.item-actions')].find(row=>row.dataset.menuFor===id);
+    if(!menu) return;
+    const willOpen=menu.hidden;
+    closeItemMenus(id);
+    menu.hidden=!willOpen;
+    menuButton.setAttribute('aria-expanded',String(willOpen));
+    return;
+  }
+  const actionButton=event.target.closest('[data-action]');
+  if(!actionButton) return;
+  const {action,id}=actionButton.dataset;
+  const item=findCurrentItem(id);
+  if(!item) return;
+  closeItemMenus();
+  try{
+    if(action==='move' || action==='edit') return openManage(item,action);
+    if(action==='reprocess'){
+      if(!confirm(`Reprocessar “${item.title||item.fileName}” usando o arquivo original?`)) return;
+      await actionRequest(`/api/imports/${encodeURIComponent(id)}/reprocess`,{method:'POST'});
+    }else if(action==='trash'){
+      if(!confirm(`Mover “${item.title||item.fileName}” para a Lixeira?`)) return;
+      await actionRequest(`/api/imports/${encodeURIComponent(id)}`,{method:'DELETE'});
+    }else if(action==='restore'){
+      await actionRequest(`/api/trash/${encodeURIComponent(id)}/restore`,{method:'POST'});
+    }else if(action==='purge'){
+      if(!confirm(`Excluir definitivamente “${item.title||item.fileName}”? Esta ação também apaga os arquivos armazenados e não pode ser desfeita.`)) return;
+      await actionRequest(`/api/trash/${encodeURIComponent(id)}`,{method:'DELETE'});
+    }
+    await refresh();
+  }catch(error){
+    alert(error.message);
+  }
+});
+
+document.addEventListener('click',event=>{ if(!event.target.closest('.item-actions')) closeItemMenus(); });
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){
+    closeItemMenus();
+    if(!$('#manageModal').hidden) closeManage();
+    else if(!$('#importModal').hidden) closeImport();
+  }
+});
+
+$('#activeTab').addEventListener('click',async()=>{
+  currentLibraryView='active';
+  $('#activeTab').classList.add('active');
+  $('#trashTab').classList.remove('active');
+  await refresh();
+});
+$('#trashTab').addEventListener('click',async()=>{
+  currentLibraryView='trash';
+  $('#trashTab').classList.add('active');
+  $('#activeTab').classList.remove('active');
+  await refresh();
+});
+$('#closeManage').addEventListener('click',closeManage);
+$('#cancelManage').addEventListener('click',closeManage);
+$('#manageModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeManage(); });
+$('#manageForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=$('#saveManage');
+  button.disabled=true;
+  $('#manageError').textContent='';
+  try{
+    const id=$('#manageId').value;
+    const payload=manageMode==='move'
+      ?{category:$('#manageCategory').value}
+      :{title:$('#manageTitleInput').value,artist:$('#manageArtist').value,album:$('#manageAlbum').value,year:$('#manageYear').value};
+    await actionRequest(`/api/imports/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+    closeManage();
+    await refresh();
+  }catch(error){
+    $('#manageError').textContent=error.message;
+  }finally{
+    button.disabled=false;
+  }
+});
 
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);

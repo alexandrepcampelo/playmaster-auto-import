@@ -35,7 +35,7 @@
       <article class="panel"><small>ARQUIVOS RECEBIDOS</small><strong id="total">0</strong></article>
       <article class="panel"><small>EM PROCESSAMENTO</small><strong id="processing">0</strong></article>
       <article class="panel"><small>PRONTOS</small><strong id="ready">0</strong></article>
-      <article class="panel alert"><small>COM ERRO</small><strong id="errors">0</strong></article>
+      <article class="panel alert"><small>NA LIXEIRA</small><strong id="trashCount">0</strong></article>
     </section>
     <section class="content">
       <article class="panel settings">
@@ -45,7 +45,7 @@
         <div class="folder-note"><strong>PASTAS DE ÁUDIO</strong><span>Músicas · Comerciais · Vinhetas · Intercons · Trilhas · Chamadas · Locução · Hora Certa · Temperatura · Outros</span></div>
       </article>
       <article class="panel recent">
-        <div class="title"><div><small>ÚLTIMOS ARQUIVOS</small><h2>Fila de importação</h2></div></div>
+        <div class="title"><div><small>BIBLIOTECA CENTRAL</small><h2>Arquivos processados</h2></div><div class="library-tabs"><button id="activeTab" class="library-tab active" type="button">Ativos</button><button id="trashTab" class="library-tab trash" type="button">Lixeira · <span id="trashTabCount">0</span></button></div></div>
         <div id="items" class="items"><p class="empty">Nenhum áudio recebido até o momento.</p></div>
       </article>
     </section>
@@ -65,6 +65,25 @@
         <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong id="dropTitle">Escolher arquivos de áudio</strong><small id="dropHint">MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small><em id="dropNote">Os originais serão preservados</em></label>
         <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
         <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Importar selecionados</button></div>
+      </form>
+    </section>
+  </div>
+  <div id="manageModal" class="modal" hidden>
+    <section class="modal-card manage-card panel" role="dialog" aria-modal="true" aria-labelledby="manageTitle">
+      <div class="modal-head"><div><small>ORGANIZAÇÃO DA BIBLIOTECA</small><h2 id="manageTitle">Organizar áudio</h2><p id="manageDescription">Corrija a pasta ou as informações sem reenviar o arquivo.</p></div><button id="closeManage" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <form id="manageForm">
+        <input id="manageId" type="hidden">
+        <div id="moveFields" class="manage-fields"><label class="category-label">Mover para a pasta<select id="manageCategory">
+          <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
+        </select></label><p class="manage-note">O ID e o áudio processado serão mantidos.</p></div>
+        <div id="editFields" class="manage-fields" hidden>
+          <label>Título<input id="manageTitleInput" maxlength="200"></label>
+          <label>Artista<input id="manageArtist" maxlength="200"></label>
+          <label>Álbum<input id="manageAlbum" maxlength="200"></label>
+          <label>Ano<input id="manageYear" maxlength="12"></label>
+        </div>
+        <p id="manageError" class="manage-error" role="alert"></p>
+        <div class="modal-actions"><button id="cancelManage" type="button" class="secondary">Cancelar</button><button id="saveManage" type="submit" class="primary">Salvar alteração</button></div>
       </form>
     </section>
   </div>
