@@ -21,6 +21,59 @@ function statusLabel(status){
   return ({received:'Recebido',processing:'Processando',ready:'Pronto',error:'Erro'})[status]||status;
 }
 
+function encodeMetadata(value){
+  const bytes=new TextEncoder().encode(value);
+  let binary='';
+  for(const byte of bytes) binary+=String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function selectedFiles(){
+  return [...$('#importFiles').files];
+}
+
+function renderUploadQueue(states={}){
+  const files=selectedFiles();
+  $('#startImport').disabled=files.length===0;
+  $('#uploadQueue').innerHTML=files.length?files.map((file,index)=>{
+    const state=states[index]||{label:'Aguardando',progress:0,type:'waiting'};
+    const marker=state.type==='done'?'✓':state.type==='error'?'!':String(index+1);
+    return `<div class="upload-row">
+      <span class="file-symbol">♫</span><span class="upload-info"><strong>${escapeText(file.name)}</strong><small>${(file.size/1024/1024).toFixed(1)} MB · ${escapeText(state.label)}</small><i><b style="width:${state.progress}%"></b></i></span>
+      <span class="upload-state ${state.type}">${marker}</span>
+    </div>`;
+  }).join(''):'<p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p>';
+}
+
+function openImport(){
+  $('#importModal').hidden=false;
+  document.body.classList.add('modal-open');
+}
+
+function closeImport(){
+  $('#importModal').hidden=true;
+  document.body.classList.remove('modal-open');
+}
+
+function sendFile(file,category,onProgress){
+  return new Promise((resolve,reject)=>{
+    const request=new XMLHttpRequest();
+    request.open('POST','/api/uploads');
+    request.setRequestHeader('content-type','application/octet-stream');
+    request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
+    request.setRequestHeader('x-category-b64',encodeMetadata(category));
+    request.upload.onprogress=event=>{ if(event.lengthComputable) onProgress(Math.round((event.loaded/event.total)*100)); };
+    request.onload=()=>{
+      let result={};
+      try{ result=JSON.parse(request.responseText); }catch{}
+      if(request.status>=200 && request.status<300) resolve(result);
+      else reject(new Error(result.error||`Falha HTTP ${request.status}`));
+    };
+    request.onerror=()=>reject(new Error('Falha de conexão durante o envio.'));
+    request.send(file);
+  });
+}
+
 async function refresh(){
   const button=$('#refresh');
   button.disabled=true;
@@ -59,6 +112,32 @@ async function refresh(){
 }
 
 $('#refresh').addEventListener('click',refresh);
+$('#openImport').addEventListener('click',openImport);
+$('#closeImport').addEventListener('click',closeImport);
+$('#cancelImport').addEventListener('click',closeImport);
+$('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
+$('#importFiles').addEventListener('change',()=>renderUploadQueue());
+$('#importForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const files=selectedFiles();
+  const states={};
+  $('#startImport').disabled=true;
+  for(let index=0;index<files.length;index++){
+    states[index]={label:'Enviando 0%',progress:0,type:'sending'};
+    renderUploadQueue(states);
+    try{
+      const result=await sendFile(files[index],$('#importCategory').value,progress=>{
+        states[index]={label:`Enviando ${progress}%`,progress,type:'sending'};
+        renderUploadQueue(states);
+      });
+      states[index]={label:result.duplicate?'Arquivo já existente':`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
+    }catch(error){
+      states[index]={label:error.message,progress:100,type:'error'};
+    }
+    renderUploadQueue(states);
+  }
+  await refresh();
+});
 $('#loginForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const button=event.currentTarget.querySelector('button');

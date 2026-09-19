@@ -34,6 +34,8 @@ O serviço gera um ID sequencial, calcula SHA-256, preserva o original em `stora
 
 O endpoint `POST /api/uploads` recebe o conteúdo binário do áudio e exige `Authorization: Bearer SEU_TOKEN`. O nome do arquivo e a categoria são enviados em Base64 nos cabeçalhos `x-file-name-b64` e `x-category-b64`. O servidor valida o formato, limita o tamanho, calcula o SHA-256, evita duplicidades, preserva o original e devolve o ID definitivo.
 
+Usuários autenticados também podem importar um ou vários áudios diretamente pelo painel web, escolhendo a categoria e acompanhando o progresso individual de cada arquivo.
+
 ## Agente local
 
 A base do agente está em `agent/`. Copie `agent/agent.config.example.json` para `agent/agent.config.json`, defina as pastas monitoradas e informe o token exclusivamente pela variável `PLAYMASTER_API_TOKEN`. O agente aguarda o arquivo terminar de ser gravado, mantém uma fila persistente, retoma envios interrompidos e aplica espera progressiva quando a internet estiver indisponível.

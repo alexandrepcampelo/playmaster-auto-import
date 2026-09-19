@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>PlayMaster Auto Import</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/upload.css">
+  <style>body.modal-open{overflow:hidden}</style>
 </head>
 <body>
   <section id="loginView" class="login-view">
@@ -27,7 +29,7 @@
   <main>
     <section class="hero panel">
       <div><small>RECEPÇÃO AUTOMÁTICA</small><h1>Biblioteca Central de Áudio</h1><p>Receba, identifique e prepare os arquivos para o Traffic e o Studio Air.</p></div>
-      <button id="refresh">Atualizar agora</button>
+      <div class="hero-actions"><button id="openImport" class="primary">＋ Importar Áudio</button><button id="refresh">Atualizar agora</button></div>
     </section>
     <section class="cards">
       <article class="panel"><small>ARQUIVOS RECEBIDOS</small><strong id="total">0</strong></article>
@@ -47,6 +49,19 @@
       </article>
     </section>
   </main>
+  <div id="importModal" class="modal" hidden>
+    <section class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+      <div class="modal-head"><div><small>IMPORTAÇÃO MANUAL</small><h2 id="importTitle">Adicionar áudios à Biblioteca</h2><p>Selecione os arquivos e informe a pasta de destino.</p></div><button id="closeImport" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <form id="importForm">
+        <label class="category-label">Pasta / categoria<select id="importCategory">
+          <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercon</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Jornalismo</option><option>Testemunhal</option><option>Rabicho</option><option>Outros</option>
+        </select></label>
+        <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong>Escolher arquivos de áudio</strong><small>MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small></label>
+        <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
+        <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Importar selecionados</button></div>
+      </form>
+    </section>
+  </div>
   </div>
   <script src="/app.js"></script>
 </body>

@@ -100,13 +100,13 @@ const server=http.createServer(async(req,res)=>{
       return json(res,200,{items:store.list(url.searchParams.get('limit'))});
     }
     if(url.pathname==='/api/imports/register' && req.method==='POST'){
-      if(!hasApiToken(req)) return json(res,401,{error:'Token de integração inválido.'});
+      if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
       const input=await body(req);
       if(!input.fileName) return json(res,400,{error:'fileName é obrigatório.'});
       return json(res,201,{item:await store.create({...input,status:'received',source:input.source||'windows-agent'})});
     }
     if(url.pathname==='/api/uploads' && req.method==='POST'){
-      if(!hasApiToken(req)) return json(res,401,{error:'Token de integração inválido.'});
+      if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
       const upload=await receiveUpload(req,{inboxDir:config.inboxDir,maxBytes:config.maxUploadBytes});
       const result=await importer.ingest(upload.filePath);
       if(result?.duplicate) await rm(upload.filePath,{force:true});
