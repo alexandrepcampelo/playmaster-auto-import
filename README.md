@@ -42,7 +42,9 @@ O painel apresenta o estágio atual, formato de origem, duração, loudness, pic
 
 O endpoint `POST /api/uploads` recebe o conteúdo binário do áudio e exige `Authorization: Bearer SEU_TOKEN`. O nome do arquivo e a categoria são enviados em Base64 nos cabeçalhos `x-file-name-b64` e `x-category-b64`. O servidor valida o formato, limita o tamanho, calcula o SHA-256, evita duplicidades, preserva o original e devolve o ID definitivo.
 
-Usuários autenticados também podem importar um ou vários áudios diretamente pelo painel web, escolhendo a categoria e acompanhando o progresso individual de cada arquivo.
+Usuários autenticados podem importar um ou vários áudios, uma pasta completa com subpastas ou um pacote ZIP diretamente pelo painel web. A categoria é escolhida antes do envio e o progresso é mostrado por arquivo.
+
+Pacotes ZIP são extraídos em área temporária, aceitam somente os formatos de áudio suportados e possuem limites de quantidade e tamanho descompactado. Caminhos absolutos ou tentativas de sair da pasta autorizada são bloqueados. Os limites são configurados por `MAX_ARCHIVE_FILES` e `MAX_EXTRACTED_BYTES`.
 
 ## Agente local
 

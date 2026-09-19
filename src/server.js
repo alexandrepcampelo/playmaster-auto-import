@@ -8,6 +8,7 @@ import { ImportStore } from './store.js';
 import { AutoImporter } from './importer.js';
 import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from './auth.js';
 import { receiveUpload } from './upload.js';
+import { receiveArchive } from './archive-upload.js';
 
 const publicDir=join(fileURLToPath(new URL('.',import.meta.url)),'..','public');
 const store=new ImportStore(config);
@@ -82,7 +83,7 @@ async function streamProcessedAudio(req,res,item){
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
-    if(url.pathname==='/api/health') return json(res,200,{ok:true,service:'playmaster-auto-import',version:'0.2.0'});
+    if(url.pathname==='/api/health') return json(res,200,{ok:true,service:'playmaster-auto-import',version:'0.3.0'});
     if(url.pathname==='/api/login' && req.method==='POST'){
       const input=await body(req);
       const key=clientKey(req,input.username);
@@ -130,6 +131,17 @@ const server=http.createServer(async(req,res)=>{
       const input=await body(req);
       if(!input.fileName) return json(res,400,{error:'fileName é obrigatório.'});
       return json(res,201,{item:await store.create({...input,status:'received',source:input.source||'windows-agent'})});
+    }
+    if(url.pathname==='/api/uploads/archive' && req.method==='POST'){
+      if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
+      const archive=await receiveArchive(req,config);
+      const results=await Promise.all(archive.files.map(filePath=>importer.ingest(filePath,{background:true})));
+      await Promise.all(results.map((result,index)=>result?.duplicate?rm(archive.files[index],{force:true}):null));
+      const items=results.filter(Boolean).map(result=>result.item).filter(Boolean);
+      return json(res,202,{
+        ok:true,queued:true,count:items.length,duplicates:results.filter(result=>result?.duplicate).length,
+        items,received:{fileName:archive.fileName,category:archive.category,size:archive.size}
+      });
     }
     if(url.pathname==='/api/uploads' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});

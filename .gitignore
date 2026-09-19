@@ -6,10 +6,12 @@ data/*.tmp
 storage/inbox/*
 storage/originals/*
 storage/processed/*
+storage/temp/*
 !data/.gitkeep
 !storage/inbox/.gitkeep
 !storage/originals/.gitkeep
 !storage/processed/.gitkeep
+!storage/temp/.gitkeep
 *.log
 .DS_Store
 agent/agent.config.json

@@ -79,8 +79,13 @@ function encodeMetadata(value){
   return btoa(binary);
 }
 
+const supportedAudioExtensions=['.mp3','.wav','.flac','.aac','.m4a','.ogg'];
+let importMode='files';
+
 function selectedFiles(){
-  return [...$('#importFiles').files];
+  const files=[...$('#importFiles').files];
+  if(importMode==='folder') return files.filter(file=>supportedAudioExtensions.some(extension=>file.name.toLowerCase().endsWith(extension)));
+  return files;
 }
 
 function renderUploadQueue(states={}){
@@ -90,7 +95,7 @@ function renderUploadQueue(states={}){
     const state=states[index]||{label:'Aguardando',progress:0,type:'waiting'};
     const marker=state.type==='done'?'✓':state.type==='error'?'!':String(index+1);
     return `<div class="upload-row">
-      <span class="file-symbol">♫</span><span class="upload-info"><strong>${escapeText(file.name)}</strong><small>${(file.size/1024/1024).toFixed(1)} MB · ${escapeText(state.label)}</small><i><b style="width:${state.progress}%"></b></i></span>
+      <span class="file-symbol">${importMode==='zip'?'▰':'♫'}</span><span class="upload-info"><strong>${escapeText(file.webkitRelativePath||file.name)}</strong><small>${(file.size/1024/1024).toFixed(1)} MB · ${escapeText(state.label)}</small><i><b style="width:${state.progress}%"></b></i></span>
       <span class="upload-state ${state.type}">${marker}</span>
     </div>`;
   }).join(''):'<p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p>';
@@ -106,10 +111,10 @@ function closeImport(){
   document.body.classList.remove('modal-open');
 }
 
-function sendFile(file,category,onProgress){
+function sendFile(file,category,onProgress,archive=false){
   return new Promise((resolve,reject)=>{
     const request=new XMLHttpRequest();
-    request.open('POST','/api/uploads');
+    request.open('POST',archive?'/api/uploads/archive':'/api/uploads');
     request.setRequestHeader('content-type','application/octet-stream');
     request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
     request.setRequestHeader('x-category-b64',encodeMetadata(category));
@@ -123,6 +128,37 @@ function sendFile(file,category,onProgress){
     request.onerror=()=>reject(new Error('Falha de conexão durante o envio.'));
     request.send(file);
   });
+}
+
+function selectImportMode(mode){
+  importMode=mode;
+  document.querySelectorAll('.source-tab').forEach(button=>button.classList.toggle('active',button.dataset.mode===mode));
+  const input=$('#importFiles');
+  input.value='';
+  input.removeAttribute('webkitdirectory');
+  input.removeAttribute('directory');
+  if(mode==='folder'){
+    input.multiple=true;
+    input.accept='audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg';
+    input.setAttribute('webkitdirectory','');
+    input.setAttribute('directory','');
+    $('#dropTitle').textContent='Escolher uma pasta de áudio';
+    $('#dropHint').textContent='Os áudios compatíveis das subpastas também serão incluídos';
+    $('#dropNote').textContent='Arquivos que não forem de áudio serão ignorados';
+  }else if(mode==='zip'){
+    input.multiple=false;
+    input.accept='.zip,application/zip,application/x-zip-compressed';
+    $('#dropTitle').textContent='Escolher um arquivo ZIP';
+    $('#dropHint').textContent='O pacote será verificado e descompactado com segurança';
+    $('#dropNote').textContent='Somente os áudios compatíveis serão importados';
+  }else{
+    input.multiple=true;
+    input.accept='audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg';
+    $('#dropTitle').textContent='Escolher arquivos de áudio';
+    $('#dropHint').textContent='MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo';
+    $('#dropNote').textContent='Os originais serão preservados';
+  }
+  renderUploadQueue();
 }
 
 async function refresh(){
@@ -184,12 +220,34 @@ $('#openImport').addEventListener('click',openImport);
 $('#closeImport').addEventListener('click',closeImport);
 $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
+document.querySelectorAll('.source-tab').forEach(button=>button.addEventListener('click',()=>selectImportMode(button.dataset.mode)));
 $('#importFiles').addEventListener('change',()=>renderUploadQueue());
 $('#importForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const files=selectedFiles();
   const states={};
   $('#startImport').disabled=true;
+  if(importMode==='zip'){
+    const file=files[0];
+    if(!file?.name.toLowerCase().endsWith('.zip')){
+      states[0]={label:'Selecione um arquivo ZIP válido',progress:100,type:'error'};
+      return renderUploadQueue(states);
+    }
+    states[0]={label:'Enviando pacote 0%',progress:0,type:'sending'};
+    renderUploadQueue(states);
+    try{
+      const result=await sendFile(file,$('#importCategory').value,progress=>{
+        states[0]={label:progress===100?'Verificando e extraindo...':`Enviando pacote ${progress}%`,progress,type:'sending'};
+        renderUploadQueue(states);
+      },true);
+      states[0]={label:`${result.count||0} áudio(s) recebido(s)${result.duplicates?` · ${result.duplicates} repetido(s)`:''}`,progress:100,type:'done'};
+    }catch(error){
+      states[0]={label:error.message,progress:100,type:'error'};
+    }
+    renderUploadQueue(states);
+    await refresh();
+    return;
+  }
   for(let index=0;index<files.length;index++){
     states[index]={label:'Enviando 0%',progress:0,type:'sending'};
     renderUploadQueue(states);

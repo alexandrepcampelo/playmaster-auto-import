@@ -92,7 +92,8 @@ export class AutoImporter{
   }
 
   async prepare(filePath){
-    const info=await stat(filePath);
+    let info;
+    try{info=await stat(filePath);}catch(error){if(error.code==='ENOENT') return null;throw error;}
     const signature=`${info.size}:${info.mtimeMs}`;
     const relativePath=relative(this.inboxDir,filePath);
     if(this.known.get(filePath)===signature){

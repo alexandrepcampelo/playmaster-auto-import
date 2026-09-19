@@ -9,9 +9,12 @@ services:
       INBOX_DIR: /app/storage/inbox
       ORIGINALS_DIR: /app/storage/originals
       PROCESSED_DIR: /app/storage/processed
+      TEMP_DIR: /app/storage/temp
       STATION_CODE: PM
       POLL_INTERVAL_MS: 3000
       MAX_UPLOAD_BYTES: 1073741824
+      MAX_ARCHIVE_FILES: 500
+      MAX_EXTRACTED_BYTES: 2147483648
       TARGET_LUFS: -16
       TRUE_PEAK_DB: -1
       SILENCE_THRESHOLD_DB: -45
