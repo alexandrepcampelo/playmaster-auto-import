@@ -1,11 +1,12 @@
 import http from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile,rm } from 'node:fs/promises';
 import { extname,join,normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { ImportStore } from './store.js';
 import { AutoImporter } from './importer.js';
 import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from './auth.js';
+import { receiveUpload } from './upload.js';
 
 const publicDir=join(fileURLToPath(new URL('.',import.meta.url)),'..','public');
 const store=new ImportStore(config);
@@ -104,6 +105,16 @@ const server=http.createServer(async(req,res)=>{
       if(!input.fileName) return json(res,400,{error:'fileName é obrigatório.'});
       return json(res,201,{item:await store.create({...input,status:'received',source:input.source||'windows-agent'})});
     }
+    if(url.pathname==='/api/uploads' && req.method==='POST'){
+      if(!hasApiToken(req)) return json(res,401,{error:'Token de integração inválido.'});
+      const upload=await receiveUpload(req,{inboxDir:config.inboxDir,maxBytes:config.maxUploadBytes});
+      const result=await importer.ingest(upload.filePath);
+      if(result?.duplicate) await rm(upload.filePath,{force:true});
+      return json(res,result?.duplicate?200:201,{
+        ok:true,duplicate:Boolean(result?.duplicate),item:result?.item||null,
+        received:{fileName:upload.fileName,category:upload.category,size:upload.size}
+      });
+    }
     const route=url.pathname==='/'?'/index.html':url.pathname;
     const safe=normalize(route).replace(/^(\.\.[/\\])+/, '');
     const filePath=join(publicDir,safe);
@@ -114,7 +125,7 @@ const server=http.createServer(async(req,res)=>{
   }catch(error){
     if(error.code==='ENOENT') return json(res,404,{error:'Não encontrado.'});
     console.error(error);
-    json(res,500,{error:'Erro interno do Auto Import.'});
+    json(res,error.statusCode||500,{error:error.statusCode?error.message:'Erro interno do Auto Import.'});
   }
 });
 

@@ -10,3 +10,5 @@ storage/originals/*
 !storage/originals/.gitkeep
 *.log
 .DS_Store
+agent/agent.config.json
+agent/data/

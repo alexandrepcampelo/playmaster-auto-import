@@ -1,0 +1,10 @@
+{
+  "apiUrl": "https://autoimport.179-198-124-131.sslip.io",
+  "scanIntervalMs": 5000,
+  "stateFile": "./data/agent-state.json",
+  "folders": [
+    { "path": "C:\\PlayMaster\\Musicas", "category": "Músicas" },
+    { "path": "C:\\PlayMaster\\Comerciais", "category": "Comerciais" },
+    { "path": "C:\\PlayMaster\\Vinhetas", "category": "Vinhetas" }
+  ]
+}

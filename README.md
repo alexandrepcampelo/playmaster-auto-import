@@ -30,6 +30,21 @@ Coloque arquivos `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` ou `.ogg` em `storage/i
 
 O serviço gera um ID sequencial, calcula SHA-256, preserva o original em `storage/originals` e registra o resultado em `data/imports.json`.
 
+## Upload pelo agente
+
+O endpoint `POST /api/uploads` recebe o conteúdo binário do áudio e exige `Authorization: Bearer SEU_TOKEN`. O nome do arquivo e a categoria são enviados em Base64 nos cabeçalhos `x-file-name-b64` e `x-category-b64`. O servidor valida o formato, limita o tamanho, calcula o SHA-256, evita duplicidades, preserva o original e devolve o ID definitivo.
+
+## Agente local
+
+A base do agente está em `agent/`. Copie `agent/agent.config.example.json` para `agent/agent.config.json`, defina as pastas monitoradas e informe o token exclusivamente pela variável `PLAYMASTER_API_TOKEN`. O agente aguarda o arquivo terminar de ser gravado, mantém uma fila persistente, retoma envios interrompidos e aplica espera progressiva quando a internet estiver indisponível.
+
+```bash
+cd agent
+PLAYMASTER_API_TOKEN="seu-token" npm start
+```
+
+O instalador e a execução como serviço do Windows serão preparados após a validação em uma máquina Windows.
+
 ## Deploy
 
 O workflow da branch `main` utiliza os Secrets `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_SSH_KEY`, `DEPLOY_PATH`, `AUTO_IMPORT_ADMIN_USER`, `AUTO_IMPORT_ADMIN_PASSWORD`, `AUTO_IMPORT_API_TOKEN` e `AUTO_IMPORT_SESSION_SECRET`. A aplicação fica vinculada somente a `127.0.0.1:3600` e deve ser publicada por proxy reverso HTTPS.

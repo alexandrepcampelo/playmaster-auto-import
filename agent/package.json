@@ -1,0 +1,13 @@
+{
+  "name": "playmaster-auto-import-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente local de sincronização de áudios para Windows.",
+  "scripts": {
+    "start": "node src/main.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

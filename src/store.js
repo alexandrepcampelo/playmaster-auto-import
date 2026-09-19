@@ -25,6 +25,14 @@ export class ImportStore{
     return this.state.items.slice(-Math.max(1,Math.min(Number(limit)||100,500))).reverse();
   }
 
+  findByChecksum(checksum){
+    return this.state.items.find(item=>item.checksum===checksum)||null;
+  }
+
+  findBySourcePath(sourcePath){
+    return this.state.items.find(item=>item.sourcePath===sourcePath)||null;
+  }
+
   counts(){
     return this.state.items.reduce((result,item)=>{
       result.total+=1;

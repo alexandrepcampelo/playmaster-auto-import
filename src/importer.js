@@ -35,7 +35,8 @@ export class AutoImporter{
     this.store=store;
     this.known=new Map();
     this.timer=null;
-    this.scanning=false;
+    this.scanPromise=null;
+    this.ingestQueue=Promise.resolve();
   }
 
   async init(){
@@ -47,25 +48,33 @@ export class AutoImporter{
   }
 
   async scan(){
-    if(this.scanning) return;
-    this.scanning=true;
-    try{
+    if(this.scanPromise) return this.scanPromise;
+    this.scanPromise=(async()=>{
       const files=await walk(this.inboxDir);
-      for(const filePath of files) await this.receive(filePath);
-    }finally{
-      this.scanning=false;
-    }
+      for(const filePath of files) await this.ingest(filePath);
+    })().finally(()=>{ this.scanPromise=null; });
+    return this.scanPromise;
+  }
+
+  ingest(filePath){
+    const operation=this.ingestQueue.then(()=>this.receive(filePath));
+    this.ingestQueue=operation.catch(()=>{});
+    return operation;
   }
 
   async receive(filePath){
     const info=await stat(filePath);
     const signature=`${info.size}:${info.mtimeMs}`;
-    if(this.known.get(filePath)===signature) return;
-    this.known.set(filePath,signature);
     const relativePath=relative(this.inboxDir,filePath);
+    if(this.known.get(filePath)===signature){
+      const item=this.store.findBySourcePath(relativePath);
+      return item?{item,duplicate:false,alreadyKnown:true}:null;
+    }
+    this.known.set(filePath,signature);
     const category=relativePath.includes('/')?relativePath.split('/')[0]:'Outros';
     const digest=await checksum(filePath);
-    if(this.store.state.items.some(item=>item.checksum===digest)) return;
+    const existing=this.store.findByChecksum(digest);
+    if(existing) return {item:existing,duplicate:true};
 
     const item=await this.store.create({
       fileName:basename(filePath),category,source:'vps-inbox',sourcePath:relativePath,
@@ -74,9 +83,11 @@ export class AutoImporter{
     try{
       const originalPath=join(this.originalsDir,`${item.id}${extname(filePath).toLowerCase()}`);
       await copyFile(filePath,originalPath);
-      await this.store.update(item.id,{originalPath,status:'ready'});
+      const ready=await this.store.update(item.id,{originalPath,status:'ready'});
+      return {item:ready,duplicate:false};
     }catch(error){
-      await this.store.update(item.id,{status:'error',error:error.message});
+      const failed=await this.store.update(item.id,{status:'error',error:error.message});
+      return {item:failed,duplicate:false};
     }
   }
 

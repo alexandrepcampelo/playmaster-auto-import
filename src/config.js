@@ -19,6 +19,7 @@ export const config={
   originalsDir:resolve(process.env.ORIGINALS_DIR||'./storage/originals'),
   stationCode:String(process.env.STATION_CODE||'PM').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,8)||'PM',
   pollIntervalMs:positiveInteger(process.env.POLL_INTERVAL_MS,3000),
+  maxUploadBytes:positiveInteger(process.env.MAX_UPLOAD_BYTES,1024*1024*1024),
   adminUser:String(process.env.AUTO_IMPORT_ADMIN_USER||'admin').trim(),
   adminPassword:required('AUTO_IMPORT_ADMIN_PASSWORD',12),
   apiToken:required('AUTO_IMPORT_API_TOKEN',32),
