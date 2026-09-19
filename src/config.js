@@ -6,7 +6,8 @@ function positiveInteger(value,fallback){
 }
 
 function required(name,minLength){
-  const value=String(process.env[name]||'');
+  const encoded=String(process.env[`${name}_B64`]||'');
+  const value=encoded?Buffer.from(encoded,'base64').toString('utf8'):String(process.env[name]||'');
   if(value.length<minLength) throw new Error(`${name} deve ter pelo menos ${minLength} caracteres.`);
   return value;
 }

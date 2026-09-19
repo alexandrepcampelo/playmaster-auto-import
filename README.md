@@ -22,7 +22,7 @@ Abra `http://localhost:3600`.
 
 Antes de iniciar, configure `AUTO_IMPORT_ADMIN_PASSWORD`, `AUTO_IMPORT_API_TOKEN` e `AUTO_IMPORT_SESSION_SECRET`. O usuário administrativo é definido por `AUTO_IMPORT_ADMIN_USER` e, se omitido, será `admin`.
 
-O painel utiliza sessão segura por cookie. Integrações, como o futuro agente Windows, devem enviar `Authorization: Bearer SEU_TOKEN` para acessar a API. Somente `/api/health` permanece público.
+O painel utiliza sessão segura por cookie. Integrações, como o futuro agente Windows, devem enviar `Authorization: Bearer SEU_TOKEN` para acessar a API. Somente `/api/health` permanece público. No deploy, os segredos são transportados em Base64 para aceitar caracteres especiais sem expô-los ou quebrar o arquivo de ambiente.
 
 ## Entrada inicial de arquivos
 

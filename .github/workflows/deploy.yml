@@ -72,11 +72,14 @@ jobs:
           AUTO_IMPORT_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
           AUTO_IMPORT_SESSION_SECRET: ${{ secrets.AUTO_IMPORT_SESSION_SECRET }}
         run: |
+          ADMIN_PASSWORD_B64=$(printf '%s' "$AUTO_IMPORT_ADMIN_PASSWORD" | base64 -w 0)
+          API_TOKEN_B64=$(printf '%s' "$AUTO_IMPORT_API_TOKEN" | base64 -w 0)
+          SESSION_SECRET_B64=$(printf '%s' "$AUTO_IMPORT_SESSION_SECRET" | base64 -w 0)
           printf '%s\n' \
             "AUTO_IMPORT_ADMIN_USER=$AUTO_IMPORT_ADMIN_USER" \
-            "AUTO_IMPORT_ADMIN_PASSWORD=$AUTO_IMPORT_ADMIN_PASSWORD" \
-            "AUTO_IMPORT_API_TOKEN=$AUTO_IMPORT_API_TOKEN" \
-            "AUTO_IMPORT_SESSION_SECRET=$AUTO_IMPORT_SESSION_SECRET" > .env.production
+            "AUTO_IMPORT_ADMIN_PASSWORD_B64=$ADMIN_PASSWORD_B64" \
+            "AUTO_IMPORT_API_TOKEN_B64=$API_TOKEN_B64" \
+            "AUTO_IMPORT_SESSION_SECRET_B64=$SESSION_SECRET_B64" > .env.production
           chmod 600 .env.production
           scp -P "$VPS_PORT" .env.production "$VPS_USER@$VPS_HOST:$DEPLOY_PATH/.env"
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$DEPLOY_PATH' && docker compose up -d --build --remove-orphans"
