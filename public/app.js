@@ -1,5 +1,16 @@
 const $=selector=>document.querySelector(selector);
 
+function showLogin(message=''){
+  $('#appView').hidden=true;
+  $('#loginView').hidden=false;
+  $('#loginError').textContent=message;
+}
+
+function showApp(){
+  $('#loginView').hidden=true;
+  $('#appView').hidden=false;
+}
+
 function escapeText(value){
   const span=document.createElement('span');
   span.textContent=String(value??'');
@@ -15,6 +26,10 @@ async function refresh(){
   button.disabled=true;
   try{
     const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch('/api/imports?limit=30')]);
+    if(statusResponse.status===401 || itemsResponse.status===401){
+      showLogin('Sua sessão expirou. Entre novamente.');
+      return;
+    }
     if(!statusResponse.ok || !itemsResponse.ok) throw new Error('Servidor indisponível');
     const status=await statusResponse.json();
     const {items}=await itemsResponse.json();
@@ -44,5 +59,44 @@ async function refresh(){
 }
 
 $('#refresh').addEventListener('click',refresh);
-setInterval(refresh,10000);
-refresh();
+$('#loginForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=event.currentTarget.querySelector('button');
+  button.disabled=true;
+  $('#loginError').textContent='';
+  try{
+    const response=await fetch('/api/login',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({username:$('#username').value,password:$('#password').value})
+    });
+    const result=await response.json();
+    if(!response.ok) throw new Error(result.error||'Não foi possível entrar.');
+    $('#password').value='';
+    showApp();
+    await refresh();
+  }catch(error){
+    showLogin(error.message);
+  }finally{
+    button.disabled=false;
+  }
+});
+
+$('#logout').addEventListener('click',async()=>{
+  await fetch('/api/logout',{method:'POST'});
+  showLogin();
+});
+
+async function start(){
+  try{
+    const response=await fetch('/api/me');
+    if(!response.ok) return showLogin();
+    showApp();
+    await refresh();
+  }catch{
+    showLogin('Não foi possível conectar ao serviço.');
+  }
+}
+
+setInterval(()=>{ if(!$('#appView').hidden) refresh(); },10000);
+start();

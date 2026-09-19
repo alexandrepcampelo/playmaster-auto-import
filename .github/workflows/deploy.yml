@@ -67,6 +67,16 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-        run: >-
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST"
-          "cd '$DEPLOY_PATH' && docker compose up -d --build --remove-orphans"
+          AUTO_IMPORT_ADMIN_USER: ${{ secrets.AUTO_IMPORT_ADMIN_USER }}
+          AUTO_IMPORT_ADMIN_PASSWORD: ${{ secrets.AUTO_IMPORT_ADMIN_PASSWORD }}
+          AUTO_IMPORT_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
+          AUTO_IMPORT_SESSION_SECRET: ${{ secrets.AUTO_IMPORT_SESSION_SECRET }}
+        run: |
+          printf '%s\n' \
+            "AUTO_IMPORT_ADMIN_USER=$AUTO_IMPORT_ADMIN_USER" \
+            "AUTO_IMPORT_ADMIN_PASSWORD=$AUTO_IMPORT_ADMIN_PASSWORD" \
+            "AUTO_IMPORT_API_TOKEN=$AUTO_IMPORT_API_TOKEN" \
+            "AUTO_IMPORT_SESSION_SECRET=$AUTO_IMPORT_SESSION_SECRET" > .env.production
+          chmod 600 .env.production
+          scp -P "$VPS_PORT" .env.production "$VPS_USER@$VPS_HOST:$DEPLOY_PATH/.env"
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$DEPLOY_PATH' && docker compose up -d --build --remove-orphans"
