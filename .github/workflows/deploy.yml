@@ -82,4 +82,16 @@ jobs:
             "AUTO_IMPORT_SESSION_SECRET_B64=$SESSION_SECRET_B64" > .env.production
           chmod 600 .env.production
           scp -P "$VPS_PORT" .env.production "$VPS_USER@$VPS_HOST:$DEPLOY_PATH/.env"
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$DEPLOY_PATH' && docker compose up -d --build --remove-orphans"
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "
+            set -e
+            cd '$DEPLOY_PATH'
+            docker compose up -d --build --remove-orphans
+            for attempt in \$(seq 1 20); do
+              if curl -fsS http://127.0.0.1:3600/api/health >/dev/null; then
+                exit 0
+              fi
+              sleep 2
+            done
+            docker compose logs --tail=80 playmaster-auto-import
+            exit 1
+          "
