@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PlayMaster Auto Import</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="mark">▶</span><div><strong>Play<span>Master</span></strong><small>AUTO IMPORT</small></div></div>
+    <div class="connection"><i></i><span>Serviço conectado</span></div>
+  </header>
+  <main>
+    <section class="hero panel">
+      <div><small>RECEPÇÃO AUTOMÁTICA</small><h1>Biblioteca Central de Áudio</h1><p>Receba, identifique e prepare os arquivos para o Traffic e o Studio Air.</p></div>
+      <button id="refresh">Atualizar agora</button>
+    </section>
+    <section class="cards">
+      <article class="panel"><small>ARQUIVOS RECEBIDOS</small><strong id="total">0</strong></article>
+      <article class="panel"><small>EM PROCESSAMENTO</small><strong id="processing">0</strong></article>
+      <article class="panel"><small>PRONTOS</small><strong id="ready">0</strong></article>
+      <article class="panel alert"><small>COM ERRO</small><strong id="errors">0</strong></article>
+    </section>
+    <section class="content">
+      <article class="panel settings">
+        <div class="title"><div><small>CONFIGURAÇÃO ATIVA</small><h2>Monitoramento da VPS</h2></div><span class="badge">Etapa 1</span></div>
+        <dl><div><dt>Código da rádio</dt><dd id="station">—</dd></div><div><dt>Pasta de entrada</dt><dd id="inbox">—</dd></div><div><dt>Originais preservados</dt><dd id="originals">—</dd></div><div><dt>Intervalo de leitura</dt><dd id="interval">—</dd></div></dl>
+        <p class="note">O aplicativo Windows será conectado a esta API em uma próxima etapa. Os IDs são gerados somente pelo servidor.</p>
+      </article>
+      <article class="panel recent">
+        <div class="title"><div><small>ÚLTIMOS ARQUIVOS</small><h2>Fila de importação</h2></div></div>
+        <div id="items" class="items"><p class="empty">Nenhum áudio recebido até o momento.</p></div>
+      </article>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

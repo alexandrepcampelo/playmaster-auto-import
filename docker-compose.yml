@@ -1,0 +1,17 @@
+services:
+  playmaster-auto-import:
+    build: .
+    container_name: playmaster-auto-import
+    restart: unless-stopped
+    environment:
+      PORT: 3600
+      DATA_DIR: /app/data
+      INBOX_DIR: /app/storage/inbox
+      ORIGINALS_DIR: /app/storage/originals
+      STATION_CODE: PM
+      POLL_INTERVAL_MS: 3000
+    ports:
+      - "127.0.0.1:3600:3600"
+    volumes:
+      - ./data:/app/data
+      - ./storage:/app/storage
