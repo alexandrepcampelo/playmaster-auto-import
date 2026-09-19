@@ -28,7 +28,7 @@
   </header>
   <main>
     <section class="hero panel">
-      <div><small>RECEPÇÃO AUTOMÁTICA</small><h1>Biblioteca Central de Áudio</h1><p>Receba, identifique e prepare os arquivos para o Traffic e o Studio Air.</p></div>
+      <div><small>PROCESSAMENTO PROFISSIONAL</small><h1>Central de Processamento de Áudio</h1><p>Importe, normalize, converta e prepare os arquivos para o Traffic e o Studio Air.</p></div>
       <div class="hero-actions"><button id="openImport" class="primary">＋ Importar Áudio</button><button id="refresh">Atualizar agora</button></div>
     </section>
     <section class="cards">
@@ -39,9 +39,10 @@
     </section>
     <section class="content">
       <article class="panel settings">
-        <div class="title"><div><small>CONFIGURAÇÃO ATIVA</small><h2>Monitoramento da VPS</h2></div><span class="badge">Etapa 1</span></div>
-        <dl><div><dt>Código da rádio</dt><dd id="station">—</dd></div><div><dt>Pasta de entrada</dt><dd id="inbox">—</dd></div><div><dt>Originais preservados</dt><dd id="originals">—</dd></div><div><dt>Intervalo de leitura</dt><dd id="interval">—</dd></div></dl>
-        <p class="note">O aplicativo Windows será conectado a esta API em uma próxima etapa. Os IDs são gerados somente pelo servidor.</p>
+        <div class="title"><div><small>PERFIL ATIVO</small><h2>Padrão PlayMaster</h2></div><span class="badge">Etapa 2</span></div>
+        <dl><div><dt>Formato de saída</dt><dd id="outputProfile">—</dd></div><div><dt>Normalização</dt><dd id="normalizationProfile">—</dd></div><div><dt>Originais preservados</dt><dd id="originals">—</dd></div><div><dt>Áudios processados</dt><dd id="processed">—</dd></div></dl>
+        <div class="analysis-list"><small>ANÁLISE AUTOMÁTICA</small><p>✓ Metadados e duração</p><p>✓ Conversão e normalização</p><p>✓ Silêncio inicial e final</p><p>✓ Cue In e Cue Out</p><p>✓ Original preservado</p></div>
+        <div class="folder-note"><strong>PASTAS DE ÁUDIO</strong><span>Músicas · Comerciais · Vinhetas · Intercons · Trilhas · Chamadas · Locução · Hora Certa · Temperatura · Outros</span></div>
       </article>
       <article class="panel recent">
         <div class="title"><div><small>ÚLTIMOS ARQUIVOS</small><h2>Fila de importação</h2></div></div>
@@ -54,7 +55,7 @@
       <div class="modal-head"><div><small>IMPORTAÇÃO MANUAL</small><h2 id="importTitle">Adicionar áudios à Biblioteca</h2><p>Selecione os arquivos e informe a pasta de destino.</p></div><button id="closeImport" class="icon-button" type="button" aria-label="Fechar">×</button></div>
       <form id="importForm">
         <label class="category-label">Pasta / categoria<select id="importCategory">
-          <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercon</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Jornalismo</option><option>Testemunhal</option><option>Rabicho</option><option>Outros</option>
+          <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
         </select></label>
         <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong>Escolher arquivos de áudio</strong><small>MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small></label>
         <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
@@ -63,6 +64,7 @@
     </section>
   </div>
   </div>
+  <audio id="previewPlayer" preload="none"></audio>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -33,6 +33,10 @@ export class ImportStore{
     return this.state.items.find(item=>item.sourcePath===sourcePath)||null;
   }
 
+  findById(id){
+    return this.state.items.find(item=>item.id===id)||null;
+  }
+
   counts(){
     return this.state.items.reduce((result,item)=>{
       result.total+=1;
@@ -51,9 +55,22 @@ export class ImportStore{
       source:String(input.source||'auto-import'),
       sourcePath:String(input.sourcePath||''),
       originalPath:String(input.originalPath||''),
+      processedPath:String(input.processedPath||''),
       checksum:String(input.checksum||''),
       size:Number(input.size)||0,
       duration:Number(input.duration)||0,
+      title:String(input.title||''),
+      artist:String(input.artist||''),
+      album:String(input.album||''),
+      year:String(input.year||''),
+      sourceFormat:String(input.sourceFormat||''),
+      outputFormat:String(input.outputFormat||''),
+      inputLufs:null,
+      outputLufs:null,
+      truePeak:null,
+      cueIn:0,
+      cueOut:0,
+      processingStage:String(input.processingStage||''),
       status:String(input.status||'received'),
       error:'',
       createdAt:new Date().toISOString(),
@@ -68,7 +85,7 @@ export class ImportStore{
   async update(id,patch){
     const item=this.state.items.find(row=>row.id===id);
     if(!item) return null;
-    const allowed=['category','originalPath','checksum','duration','status','error'];
+    const allowed=['category','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
     for(const key of allowed){
       if(Object.hasOwn(patch,key)) item[key]=patch[key];
     }

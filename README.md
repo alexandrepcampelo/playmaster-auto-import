@@ -11,7 +11,7 @@ Serviço de recepção, identificação e preparação de arquivos de áudio do 
 
 ## Executar localmente
 
-Requer Node.js 20 ou superior.
+Requer Node.js 20 ou superior, FFmpeg e FFprobe. A imagem Docker já instala essas dependências.
 
 ```bash
 cp .env.example .env
@@ -28,7 +28,15 @@ O painel utiliza sessão segura por cookie. Integrações, como o futuro agente 
 
 Coloque arquivos `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` ou `.ogg` em `storage/inbox`. Uma subpasta pode representar a categoria, por exemplo `storage/inbox/Comerciais/anuncio.mp3`.
 
-O serviço gera um ID sequencial, calcula SHA-256, preserva o original em `storage/originals` e registra o resultado em `data/imports.json`.
+O serviço gera um ID sequencial, calcula SHA-256, preserva o original em `storage/originals`, processa a cópia em `storage/processed` e registra o resultado em `data/imports.json`.
+
+As pastas de áudio disponíveis são: Músicas, Comerciais, Vinhetas, Intercons, Trilhas, Chamadas, Locução, Hora Certa, Temperatura e Outros. Jornalismo, Testemunhal e Rabicho pertencem aos seus próprios módulos e não são categorias desta biblioteca.
+
+## Processamento de áudio
+
+Cada arquivo válido passa por leitura de metadados e duração, análise de loudness e silêncio, cálculo de Cue In/Cue Out, conversão para MP3 320 kbps CBR em 44,1 kHz e normalização para -16 LUFS com pico máximo de -1 dBTP. O original nunca é sobrescrito. Os valores podem ser ajustados pelas variáveis `TARGET_LUFS`, `TRUE_PEAK_DB`, `SILENCE_THRESHOLD_DB` e `SILENCE_DURATION`.
+
+O painel apresenta o estágio atual, formato de origem, duração, loudness, pico, Cue Points e um player autenticado da versão processada.
 
 ## Upload pelo agente
 
@@ -53,9 +61,8 @@ O workflow da branch `main` utiliza os Secrets `VPS_HOST`, `VPS_USER`, `VPS_PORT
 
 ## Próximas etapas
 
-1. agente Windows e monitoramento de pastas locais;
-2. upload resumível;
-3. normalização LUFS/True Peak preservando o original;
-4. análise de duração, Cue e Fade;
-5. integração com Traffic e sincronização do Studio Air;
-6. empacotamento do agente como `.exe`.
+1. editor de forma de onda para revisão de Intro, Segue e Cue Points;
+2. agente Windows e monitoramento de pastas locais;
+3. upload resumível;
+4. integração com Traffic e sincronização do Studio Air;
+5. empacotamento do agente como `.exe`.

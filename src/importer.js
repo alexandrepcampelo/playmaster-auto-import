@@ -1,7 +1,8 @@
-import { copyFile,mkdir,readdir,stat } from 'node:fs/promises';
+import { access,copyFile,mkdir,readdir,rm,stat } from 'node:fs/promises';
 import { basename,extname,join,relative } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
+import { analyzeAudio,convertAudio,displayTitle } from './audio-processor.js';
 
 const supportedExtensions=new Set(['.mp3','.wav','.flac','.aac','.m4a','.ogg']);
 
@@ -28,41 +29,69 @@ async function walk(directory){
 }
 
 export class AutoImporter{
-  constructor({inboxDir,originalsDir,pollIntervalMs,store}){
+  constructor({inboxDir,originalsDir,processedDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store}){
     this.inboxDir=inboxDir;
     this.originalsDir=originalsDir;
+    this.processedDir=processedDir;
     this.pollIntervalMs=pollIntervalMs;
+    this.audioSettings={targetLufs,truePeakDb,silenceThresholdDb,silenceDuration};
     this.store=store;
     this.known=new Map();
     this.timer=null;
     this.scanPromise=null;
-    this.ingestQueue=Promise.resolve();
+    this.prepareQueue=Promise.resolve();
+    this.processQueue=Promise.resolve();
   }
 
   async init(){
     await mkdir(this.inboxDir,{recursive:true});
     await mkdir(this.originalsDir,{recursive:true});
+    await mkdir(this.processedDir,{recursive:true});
     await this.scan();
+    this.resumePending();
     this.timer=setInterval(()=>void this.scan(),this.pollIntervalMs);
     this.timer.unref?.();
+  }
+
+  resumePending(){
+    for(const item of this.store.list(500).reverse()){
+      const legacyReady=item.status==='ready' && item.originalPath && !item.processedPath;
+      if((item.status!=='processing' && !legacyReady) || !item.originalPath) continue;
+      const processing=this.processQueue.then(async()=>{
+        await access(item.originalPath);
+        if(legacyReady) await this.store.update(item.id,{status:'processing',processingStage:'analyzing',error:''});
+        return this.process({item,originalPath:item.originalPath});
+      }).catch(async error=>{
+        await this.store.update(item.id,{status:'error',processingStage:'error',error:`Não foi possível retomar: ${error.message}`});
+      });
+      this.processQueue=processing;
+    }
   }
 
   async scan(){
     if(this.scanPromise) return this.scanPromise;
     this.scanPromise=(async()=>{
       const files=await walk(this.inboxDir);
-      for(const filePath of files) await this.ingest(filePath);
+      for(const filePath of files){
+        const result=await this.ingest(filePath);
+        if(result?.duplicate) await rm(filePath,{force:true});
+      }
     })().finally(()=>{ this.scanPromise=null; });
     return this.scanPromise;
   }
 
-  ingest(filePath){
-    const operation=this.ingestQueue.then(()=>this.receive(filePath));
-    this.ingestQueue=operation.catch(()=>{});
-    return operation;
+  async ingest(filePath,{background=false}={}){
+    const preparation=this.prepareQueue.then(()=>this.prepare(filePath));
+    this.prepareQueue=preparation.catch(()=>{});
+    const accepted=await preparation;
+    if(!accepted || accepted.duplicate || accepted.alreadyKnown || accepted.failed) return accepted;
+    const processing=this.processQueue.then(()=>this.process(accepted));
+    this.processQueue=processing.catch(()=>{});
+    if(background) return {...accepted,queued:true};
+    return processing;
   }
 
-  async receive(filePath){
+  async prepare(filePath){
     const info=await stat(filePath);
     const signature=`${info.size}:${info.mtimeMs}`;
     const relativePath=relative(this.inboxDir,filePath);
@@ -78,15 +107,43 @@ export class AutoImporter{
 
     const item=await this.store.create({
       fileName:basename(filePath),category,source:'vps-inbox',sourcePath:relativePath,
-      size:info.size,checksum:digest,status:'processing'
+      size:info.size,checksum:digest,status:'processing',processingStage:'preserving'
     });
     try{
       const originalPath=join(this.originalsDir,`${item.id}${extname(filePath).toLowerCase()}`);
       await copyFile(filePath,originalPath);
-      const ready=await this.store.update(item.id,{originalPath,status:'ready'});
+      const prepared=await this.store.update(item.id,{originalPath,processingStage:'analyzing'});
+      await rm(filePath,{force:true});
+      return {item:prepared,originalPath,filePath,duplicate:false};
+    }catch(error){
+      const failed=await this.store.update(item.id,{status:'error',processingStage:'error',error:error.message});
+      return {item:failed,duplicate:false,failed:true};
+    }
+  }
+
+  async process({item,originalPath}){
+    try{
+      const analysis=await analyzeAudio(originalPath,this.audioSettings);
+      await this.store.update(item.id,{
+        duration:analysis.duration,title:displayTitle(analysis,item.fileName),artist:analysis.artist,
+        album:analysis.album,year:analysis.year,sourceFormat:analysis.sourceFormat,
+        inputLufs:analysis.inputLufs,cueIn:analysis.cueIn,cueOut:analysis.cueOut,
+        processingStage:'converting'
+      });
+      const processedPath=await convertAudio(originalPath,{
+        processedDir:this.processedDir,id:item.id,targetLufs:this.audioSettings.targetLufs,
+        truePeakDb:this.audioSettings.truePeakDb,measurement:analysis.loudness
+      });
+      await this.store.update(item.id,{processedPath,processingStage:'verifying'});
+      const output=await analyzeAudio(processedPath,this.audioSettings);
+      const ready=await this.store.update(item.id,{
+        processedPath,duration:output.duration,outputFormat:'MP3 320 kbps · 44,1 kHz',
+        outputLufs:output.inputLufs,truePeak:output.inputTruePeak,
+        cueIn:output.cueIn,cueOut:output.cueOut,processingStage:'ready',status:'ready',error:''
+      });
       return {item:ready,duplicate:false};
     }catch(error){
-      const failed=await this.store.update(item.id,{status:'error',error:error.message});
+      const failed=await this.store.update(item.id,{status:'error',processingStage:'error',error:error.message});
       return {item:failed,duplicate:false};
     }
   }

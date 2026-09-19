@@ -1,13 +1,13 @@
 {
   "name": "playmaster-auto-import",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Recepção, identificação e preparação de áudios do ecossistema PlayMaster.",
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test",
-    "check": "node --check src/server.js && node --check src/auth.js && node --check src/upload.js && node --check src/store.js && node --check src/importer.js && node --check public/app.js && node --check agent/src/main.js"
+    "check": "node --check src/server.js && node --check src/auth.js && node --check src/upload.js && node --check src/store.js && node --check src/audio-processor.js && node --check src/importer.js && node --check public/app.js && node --check agent/src/main.js"
   },
   "engines": {
     "node": ">=20"

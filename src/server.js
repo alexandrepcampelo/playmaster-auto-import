@@ -1,5 +1,6 @@
 import http from 'node:http';
-import { readFile,rm } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { readFile,rm,stat } from 'node:fs/promises';
 import { extname,join,normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
@@ -59,10 +60,29 @@ function requireReadAccess(req,res){
   return false;
 }
 
+async function streamProcessedAudio(req,res,item){
+  if(!item?.processedPath) return json(res,404,{error:'Áudio processado ainda não está disponível.'});
+  const info=await stat(item.processedPath);
+  const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
+  const headers={'content-type':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
+  if(range){
+    const start=range[1]?Number(range[1]):0;
+    const end=range[2]?Math.min(Number(range[2]),info.size-1):info.size-1;
+    if(!Number.isInteger(start) || !Number.isInteger(end) || start<0 || end<start || start>=info.size){
+      res.writeHead(416,{'content-range':`bytes */${info.size}`});
+      return res.end();
+    }
+    res.writeHead(206,{...headers,'content-range':`bytes ${start}-${end}/${info.size}`,'content-length':end-start+1});
+    return createReadStream(item.processedPath,{start,end}).pipe(res);
+  }
+  res.writeHead(200,{...headers,'content-length':info.size});
+  createReadStream(item.processedPath).pipe(res);
+}
+
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
-    if(url.pathname==='/api/health') return json(res,200,{ok:true,service:'playmaster-auto-import',version:'0.1.0'});
+    if(url.pathname==='/api/health') return json(res,200,{ok:true,service:'playmaster-auto-import',version:'0.2.0'});
     if(url.pathname==='/api/login' && req.method==='POST'){
       const input=await body(req);
       const key=clientKey(req,input.username);
@@ -92,12 +112,18 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/status' && !requireReadAccess(req,res)) return;
     if(url.pathname==='/api/status') return json(res,200,{
-      ok:true,counts:store.counts(),inboxDir:config.inboxDir,originalsDir:config.originalsDir,
-      stationCode:config.stationCode,pollIntervalMs:config.pollIntervalMs
+      ok:true,counts:store.counts(),inboxDir:config.inboxDir,originalsDir:config.originalsDir,processedDir:config.processedDir,
+      stationCode:config.stationCode,pollIntervalMs:config.pollIntervalMs,
+      audioProfile:{output:'MP3 320 kbps CBR · 44,1 kHz',targetLufs:config.targetLufs,truePeakDb:config.truePeakDb}
     });
     if(url.pathname==='/api/imports' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;
       return json(res,200,{items:store.list(url.searchParams.get('limit'))});
+    }
+    const audioMatch=url.pathname.match(/^\/api\/imports\/([^/]+)\/audio$/);
+    if(audioMatch && req.method==='GET'){
+      if(!requireReadAccess(req,res)) return;
+      return await streamProcessedAudio(req,res,store.findById(decodeURIComponent(audioMatch[1])));
     }
     if(url.pathname==='/api/imports/register' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
@@ -108,10 +134,10 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/uploads' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
       const upload=await receiveUpload(req,{inboxDir:config.inboxDir,maxBytes:config.maxUploadBytes});
-      const result=await importer.ingest(upload.filePath);
+      const result=await importer.ingest(upload.filePath,{background:true});
       if(result?.duplicate) await rm(upload.filePath,{force:true});
-      return json(res,result?.duplicate?200:201,{
-        ok:true,duplicate:Boolean(result?.duplicate),item:result?.item||null,
+      return json(res,result?.duplicate?200:202,{
+        ok:true,duplicate:Boolean(result?.duplicate),queued:Boolean(result?.queued),item:result?.item||null,
         received:{fileName:upload.fileName,category:upload.category,size:upload.size}
       });
     }
