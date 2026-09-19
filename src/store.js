@@ -14,7 +14,15 @@ export class ImportStore{
     await mkdir(this.dataDir,{recursive:true});
     try{
       const saved=JSON.parse(await readFile(this.filePath,'utf8'));
-      if(saved && Array.isArray(saved.items)) this.state={version:1,counter:Number(saved.counter)||0,items:saved.items};
+      if(saved && Array.isArray(saved.items)) this.state={
+        version:2,
+        counter:Number(saved.counter)||0,
+        items:saved.items.map(item=>({
+          ...item,
+          publishedAt:item.publishedAt||(item.status==='ready'?(item.updatedAt||item.createdAt):''),
+          deliveries:item.deliveries&&typeof item.deliveries==='object'?item.deliveries:{}
+        }))
+      };
     }catch(error){
       if(error.code!=='ENOENT') throw error;
       await this.persist();
@@ -35,6 +43,16 @@ export class ImportStore{
 
   findById(id){
     return this.state.items.find(item=>item.id===id)||null;
+  }
+
+  ready({limit=100,category='',consumer='',after=''}={}){
+    return this.state.items
+      .filter(item=>item.status==='ready')
+      .filter(item=>!category || item.category===category)
+      .filter(item=>!consumer || item.deliveries?.[consumer]?.status!=='synced')
+      .filter(item=>!after || String(item.publishedAt||item.updatedAt||item.createdAt)>after)
+      .sort((left,right)=>String(left.publishedAt||left.updatedAt||left.createdAt).localeCompare(String(right.publishedAt||right.updatedAt||right.createdAt)))
+      .slice(0,Math.max(1,Math.min(Number(limit)||100,500)));
   }
 
   counts(){
@@ -73,6 +91,8 @@ export class ImportStore{
       processingStage:String(input.processingStage||''),
       status:String(input.status||'received'),
       error:'',
+      publishedAt:'',
+      deliveries:{},
       createdAt:new Date().toISOString(),
       updatedAt:new Date().toISOString()
     };
@@ -86,12 +106,23 @@ export class ImportStore{
     const item=this.state.items.find(row=>row.id===id);
     if(!item) return null;
     const allowed=['category','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
+    const previousStatus=item.status;
     for(const key of allowed){
       if(Object.hasOwn(patch,key)) item[key]=patch[key];
     }
     item.updatedAt=new Date().toISOString();
+    if(item.status==='ready' && previousStatus!=='ready') item.publishedAt=item.updatedAt;
     await this.persist();
     return item;
+  }
+
+  async acknowledge(id,{consumer,status,message}){
+    const item=this.findById(id);
+    if(!item || item.status!=='ready') return null;
+    item.deliveries=item.deliveries&&typeof item.deliveries==='object'?item.deliveries:{};
+    item.deliveries[consumer]={status,message:String(message||''),updatedAt:new Date().toISOString()};
+    await this.persist();
+    return item.deliveries[consumer];
   }
 
   persist(){

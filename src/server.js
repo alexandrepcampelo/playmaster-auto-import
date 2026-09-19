@@ -9,6 +9,7 @@ import { AutoImporter } from './importer.js';
 import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from './auth.js';
 import { receiveUpload } from './upload.js';
 import { receiveArchive } from './archive-upload.js';
+import { parseLibraryQuery,publicLibraryItem,validateAcknowledgement } from './library.js';
 
 const publicDir=join(fileURLToPath(new URL('.',import.meta.url)),'..','public');
 const store=new ImportStore(config);
@@ -120,6 +121,30 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/imports' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;
       return json(res,200,{items:store.list(url.searchParams.get('limit'))});
+    }
+    if(url.pathname==='/api/library' && req.method==='GET'){
+      if(!requireReadAccess(req,res)) return;
+      const query=parseLibraryQuery(url.searchParams);
+      const items=store.ready(query).map(publicLibraryItem);
+      return json(res,200,{items,count:items.length});
+    }
+    const libraryItemMatch=url.pathname.match(/^\/api\/library\/([^/]+)$/);
+    if(libraryItemMatch && req.method==='GET'){
+      if(!requireReadAccess(req,res)) return;
+      const item=publicLibraryItem(store.findById(decodeURIComponent(libraryItemMatch[1])));
+      return item?json(res,200,{item}):json(res,404,{error:'Áudio pronto não encontrado.'});
+    }
+    const libraryAudioMatch=url.pathname.match(/^\/api\/library\/([^/]+)\/audio$/);
+    if(libraryAudioMatch && req.method==='GET'){
+      if(!requireReadAccess(req,res)) return;
+      return await streamProcessedAudio(req,res,store.findById(decodeURIComponent(libraryAudioMatch[1])));
+    }
+    const libraryAckMatch=url.pathname.match(/^\/api\/library\/([^/]+)\/ack$/);
+    if(libraryAckMatch && req.method==='POST'){
+      if(!hasApiToken(req)) return json(res,401,{error:'Token de API necessário.'});
+      const acknowledgement=validateAcknowledgement(await body(req));
+      const delivery=await store.acknowledge(decodeURIComponent(libraryAckMatch[1]),acknowledgement);
+      return delivery?json(res,200,{ok:true,delivery}):json(res,404,{error:'Áudio pronto não encontrado.'});
     }
     const audioMatch=url.pathname.match(/^\/api\/imports\/([^/]+)\/audio$/);
     if(audioMatch && req.method==='GET'){

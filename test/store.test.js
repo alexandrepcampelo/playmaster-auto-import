@@ -22,3 +22,26 @@ test('gera IDs sequenciais e persistentes na VPS',async()=>{
     await rm(directory,{recursive:true,force:true});
   }
 });
+
+test('publica itens prontos e registra entregas sem republicá-los',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'playmaster-auto-import-'));
+  try{
+    const store=new ImportStore({dataDir:directory,stationCode:'PM'});
+    await store.init();
+    const created=await store.create({fileName:'comercial.wav',category:'Comerciais',status:'processing'});
+    const ready=await store.update(created.id,{status:'ready',processedPath:'/audio.mp3'});
+    assert.ok(ready.publishedAt);
+    assert.equal(store.ready({after:'2000-01-01T00:00:00.000Z'}).length,1);
+    const delivery=await store.acknowledge(created.id,{consumer:'traffic',status:'synced',message:'importado'});
+    assert.equal(delivery.status,'synced');
+    assert.equal(store.ready({after:ready.publishedAt}).length,0);
+    assert.equal(store.ready({consumer:'traffic'}).length,0);
+    assert.equal(store.ready({consumer:'studio'}).length,1);
+
+    const restored=new ImportStore({dataDir:directory,stationCode:'PM'});
+    await restored.init();
+    assert.equal(restored.findById(created.id).deliveries.traffic.status,'synced');
+  }finally{
+    await rm(directory,{recursive:true,force:true});
+  }
+});
