@@ -95,3 +95,83 @@ jobs:
             docker compose logs --tail=80 playmaster-auto-import
             exit 1
           "
+
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -e
+          DOMAIN=autoimport.apcgestor.com.br
+          ROUTE=/etc/nginx/sites-available/playmaster-auto-import-apcgestor
+          if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+          ${SUDO} mkdir -p /var/www/acme
+          ${SUDO} tee "$ROUTE" >/dev/null <<'NGINX'
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name autoimport.apcgestor.com.br;
+              location ^~ /.well-known/acme-challenge/ { root /var/www/acme; }
+              location / {
+                  proxy_pass http://127.0.0.1:3600;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 300;
+              }
+          }
+          NGINX
+          ${SUDO} ln -sfn "$ROUTE" /etc/nginx/sites-enabled/playmaster-auto-import-apcgestor
+          ${SUDO} nginx -t
+          ${SUDO} systemctl reload nginx
+
+          if command -v certbot >/dev/null 2>&1; then
+            if getent ahostsv4 "$DOMAIN" >/dev/null 2>&1; then
+              if ${SUDO} certbot certonly --webroot -w /var/www/acme -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email; then
+                echo "Certificado HTTPS confirmado para $DOMAIN."
+              else
+                echo "Aviso: Certbot não conseguiu emitir o certificado de $DOMAIN; o acesso HTTP continua disponível."
+              fi
+              if [ -s "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ] && [ -s "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]; then
+                ${SUDO} tee "$ROUTE" >/dev/null <<'NGINX'
+          server {
+              listen 80;
+              listen [::]:80;
+              server_name autoimport.apcgestor.com.br;
+              location ^~ /.well-known/acme-challenge/ { root /var/www/acme; }
+              location / { return 301 https://$host$request_uri; }
+          }
+          server {
+              listen 443 ssl;
+              listen [::]:443 ssl;
+              server_name autoimport.apcgestor.com.br;
+              ssl_certificate /etc/letsencrypt/live/autoimport.apcgestor.com.br/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/autoimport.apcgestor.com.br/privkey.pem;
+              location / {
+                  proxy_pass http://127.0.0.1:3600;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto https;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection "upgrade";
+                  proxy_read_timeout 300;
+              }
+          }
+          NGINX
+                ${SUDO} nginx -t
+                ${SUDO} systemctl reload nginx
+              fi
+            else
+              echo "DNS de $DOMAIN ainda não está configurado; o site HTTP fica preparado e o HTTPS será ativado no próximo deploy."
+            fi
+          else
+            echo "Certbot não encontrado; o subdomínio HTTP está configurado."
+          fi
+          REMOTE
+
+      - name: Validar subdomínio Auto Import
+        run: |
+          curl --connect-timeout 8 --max-time 20 -fsS "https://autoimport.apcgestor.com.br/api/health" -o /tmp/autoimport-health.json
+          echo "Health do Auto Import pelo subdomínio: $(cat /tmp/autoimport-health.json)"
