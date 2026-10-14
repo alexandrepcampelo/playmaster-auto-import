@@ -22,7 +22,7 @@ Abra `http://localhost:3600`.
 
 Antes de iniciar, configure `AUTO_IMPORT_ADMIN_PASSWORD`, `AUTO_IMPORT_API_TOKEN` e `AUTO_IMPORT_SESSION_SECRET`. O usuário administrativo é definido por `AUTO_IMPORT_ADMIN_USER` e, se omitido, será `admin`.
 
-O painel utiliza sessão segura por cookie. Integrações, como o futuro agente Windows, devem enviar `Authorization: Bearer SEU_TOKEN` para acessar a API. Somente `/api/health` permanece público. No deploy, os segredos são transportados em Base64 para aceitar caracteres especiais sem expô-los ou quebrar o arquivo de ambiente.
+O painel utiliza sessão segura por cookie. Integrações, como o futuro agente Windows, devem enviar `Authorization: Bearer SEU_TOKEN` para acessar a API. Somente `/api/health` permanece público; o endpoint meteorológico exige a mesma autenticação de leitura. No deploy, os segredos são transportados em Base64 para aceitar caracteres especiais sem expô-los ou quebrar o arquivo de ambiente.
 
 ## Entrada inicial de arquivos
 
@@ -37,6 +37,10 @@ As pastas de áudio disponíveis são: Músicas, Comerciais, Vinhetas, Intercons
 Cada arquivo válido passa por leitura de metadados e duração, análise de loudness e silêncio, cálculo de Cue In/Cue Out, conversão para MP3 320 kbps CBR em 44,1 kHz e normalização para -16 LUFS com pico máximo de -1 dBTP. O original nunca é sobrescrito. Os valores podem ser ajustados pelas variáveis `TARGET_LUFS`, `TRUE_PEAK_DB`, `SILENCE_THRESHOLD_DB` e `SILENCE_DURATION`.
 
 O painel apresenta o estágio atual, formato de origem, duração, loudness, pico, Cue Points e um player autenticado da versão processada.
+
+## Clima no PlayMaster Air
+
+O endpoint autenticado `GET /api/weather` consulta as condições atuais e máxima/mínima do dia via WeatherAPI.com, com cache de 15 minutos. A localização padrão é Jundiaí/SP e pode ser ajustada por `WEATHER_LOCATION` (latitude,longitude). Para ativar, cadastre `WEATHERAPI_KEY` como GitHub Actions Secret neste repositório. A chave é injetada no ambiente do servidor durante o deploy e nunca é enviada ao navegador.
 
 ## Upload pelo agente
 

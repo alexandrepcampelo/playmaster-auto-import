@@ -10,6 +10,11 @@ function finiteNumber(value,fallback){
   return Number.isFinite(parsed)?parsed:fallback;
 }
 
+function optional(name){
+  const encoded=String(process.env[`${name}_B64`]||'');
+  return encoded?Buffer.from(encoded,'base64').toString('utf8'):String(process.env[name]||'').trim();
+}
+
 function required(name,minLength){
   const encoded=String(process.env[`${name}_B64`]||'');
   const value=encoded?Buffer.from(encoded,'base64').toString('utf8'):String(process.env[name]||'');
@@ -25,6 +30,8 @@ export const config={
   processedDir:resolve(process.env.PROCESSED_DIR||'./storage/processed'),
   tempDir:resolve(process.env.TEMP_DIR||'./storage/temp'),
   stationCode:String(process.env.STATION_CODE||'PM').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,8)||'PM',
+  weatherApiKey:optional('WEATHERAPI_KEY'),
+  weatherLocation:String(process.env.WEATHER_LOCATION||'-23.1857,-46.8978').trim(),
   pollIntervalMs:positiveInteger(process.env.POLL_INTERVAL_MS,3000),
   maxUploadBytes:positiveInteger(process.env.MAX_UPLOAD_BYTES,1024*1024*1024),
   maxArchiveFiles:positiveInteger(process.env.MAX_ARCHIVE_FILES,500),

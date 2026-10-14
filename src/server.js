@@ -10,6 +10,7 @@ import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,
 import { receiveUpload } from './upload.js';
 import { receiveArchive } from './archive-upload.js';
 import { parseLibraryQuery,publicLibraryItem,validateAcknowledgement } from './library.js';
+import { createWeatherService } from './weather.js';
 
 const publicDir=join(fileURLToPath(new URL('.',import.meta.url)),'..','public');
 const store=new ImportStore(config);
@@ -17,6 +18,7 @@ await store.init();
 const importer=new AutoImporter({...config,store});
 await importer.init();
 const loginLimiter=new LoginLimiter();
+const weatherService=createWeatherService({apiKey:config.weatherApiKey,location:config.weatherLocation});
 
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros']);
@@ -126,6 +128,11 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/me' && req.method==='GET'){
       const session=panelSession(req);
       return session?json(res,200,{authenticated:true,user:session.username}):json(res,401,{authenticated:false});
+    }
+    if(url.pathname==='/api/weather' && req.method==='GET'){
+      if(!requireReadAccess(req,res)) return;
+      try{return json(res,200,await weatherService.get());}
+      catch(error){return json(res,error.statusCode||502,{error:error.message||'Dados meteorológicos indisponíveis.'});}
     }
     if(url.pathname==='/api/status' && !requireReadAccess(req,res)) return;
     if(url.pathname==='/api/status') return json(res,200,{
