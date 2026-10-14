@@ -178,3 +178,24 @@ jobs:
         run: |
           curl --connect-timeout 8 --max-time 20 -fsS "https://autoimport.apcgestor.com.br/api/health" -o /tmp/autoimport-health.json
           echo "Health do Auto Import pelo subdomínio: $(cat /tmp/autoimport-health.json)"
+
+      - name: Diagnosticar integração meteorológica
+        continue-on-error: true
+        env:
+          AUTO_IMPORT_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
+          WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
+        run: |
+          if [ -z "$WEATHERAPI_KEY" ]; then
+            echo "WeatherAPI: segredo WEATHERAPI_KEY ausente ou vazio neste repositório."
+            exit 1
+          fi
+          status=$(curl --connect-timeout 8 --max-time 20 -sS \
+            -H "Authorization: Bearer $AUTO_IMPORT_API_TOKEN" \
+            -o /tmp/autoimport-weather.json -w "%{http_code}" \
+            "https://autoimport.apcgestor.com.br/api/weather")
+          if [ "$status" = "200" ]; then
+            node -e 'const w=require("/tmp/autoimport-weather.json"); console.log("WeatherAPI ativo:", w.temperatureC+"°C,", w.humidity+"% umidade,", w.location)'
+          else
+            node -e 'const w=require("/tmp/autoimport-weather.json"); console.log("Consulta meteorológica retornou HTTP "+process.argv[1]+": "+(w.error||"sem detalhe"))' "$status"
+            exit 1
+          fi
