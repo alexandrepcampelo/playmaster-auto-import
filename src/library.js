@@ -16,6 +16,7 @@ export function publicLibraryItem(item){
     album:item.album,
     year:item.year,
     category:item.category,
+    subcategory:item.subcategory||'',
     duration:finite(item.duration),
     checksum:item.checksum,
     size:finite(item.size),

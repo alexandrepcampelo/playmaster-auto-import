@@ -158,6 +158,8 @@ const server=http.createServer(async(req,res)=>{
         if(!audioCategories.has(category)) return json(res,400,{error:'Pasta de áudio inválida.'});
         patch.category=category;
       }
+      if(Object.hasOwn(input,'subcategory')) patch.subcategory=patch.category==='Hora Certa'?String(input.subcategory||'').normalize('NFC').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'-').trim().slice(0,80):'';
+      else if(patch.category && patch.category!=='Hora Certa') patch.subcategory='';
       for(const [key,max] of [['title',200],['artist',200],['album',200],['year',12]]){
         if(Object.hasOwn(input,key)) patch[key]=String(input[key]??'').trim().slice(0,max);
       }
@@ -236,7 +238,7 @@ const server=http.createServer(async(req,res)=>{
       const items=results.filter(Boolean).map(result=>result.item).filter(Boolean);
       return json(res,202,{
         ok:true,queued:true,count:items.length,duplicates:results.filter(result=>result?.duplicate).length,
-        items,received:{fileName:archive.fileName,category:archive.category,size:archive.size}
+        items,received:{fileName:archive.fileName,category:archive.category,subcategory:archive.subcategory,size:archive.size}
       });
     }
     if(url.pathname==='/api/uploads' && req.method==='POST'){
@@ -246,7 +248,7 @@ const server=http.createServer(async(req,res)=>{
       if(result?.duplicate) await rm(upload.filePath,{force:true});
       return json(res,result?.duplicate?200:202,{
         ok:true,duplicate:Boolean(result?.duplicate),queued:Boolean(result?.queued),item:result?.item||null,
-        received:{fileName:upload.fileName,category:upload.category,size:upload.size}
+        received:{fileName:upload.fileName,category:upload.category,subcategory:upload.subcategory,size:upload.size}
       });
     }
     const route=url.pathname==='/'?'/index.html':url.pathname;

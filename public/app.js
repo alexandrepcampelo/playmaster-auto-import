@@ -59,7 +59,7 @@ function itemTemplate(item){
   return `<div class="process-item ${state}">
     <div class="process-head">
       <span class="item-icon category-${categoryClass(item.category)}">♫</span>
-      <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)} · ${escapeText(format)}</small></span>
+      <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)}${item.subcategory?` / ${escapeText(item.subcategory)}`:''} · ${escapeText(format)}</small></span>
       <span class="process-status ${state}">${escapeText(stageLabel(item))}</span>
       ${item.status==='ready' && item.processedPath?`<button class="play-audio" type="button" data-url="${escapeText(audioUrl)}">▶ Ouvir</button>`:`<b class="process-percent">${progress}%</b>`}
       <button class="item-menu-btn" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Opções de ${escapeText(title)}" aria-expanded="false">•••</button>
@@ -93,7 +93,7 @@ function trashTemplate(item){
   const title=item.title||item.fileName;
   return `<div class="trash-item">
     <span class="item-icon category-${categoryClass(item.category)}">♫</span>
-    <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)} · excluído em ${escapeText(formatDate(item.deletedAt))}</small></span>
+    <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)}${item.subcategory?` / ${escapeText(item.subcategory)}`:''} · excluído em ${escapeText(formatDate(item.deletedAt))}</small></span>
     <div class="trash-actions"><button type="button" data-action="restore" data-id="${escapeText(item.id)}">↶ Restaurar</button><button class="danger" type="button" data-action="purge" data-id="${escapeText(item.id)}">Excluir definitivamente</button></div>
   </div>`;
 }
@@ -140,13 +140,14 @@ function closeImport(){
   document.body.classList.remove('modal-open');
 }
 
-function sendFile(file,category,onProgress,archive=false){
+function sendFile(file,category,subcategory,onProgress,archive=false){
   return new Promise((resolve,reject)=>{
     const request=new XMLHttpRequest();
     request.open('POST',archive?'/api/uploads/archive':'/api/uploads');
     request.setRequestHeader('content-type','application/octet-stream');
     request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
     request.setRequestHeader('x-category-b64',encodeMetadata(category));
+    if(category==='Hora Certa'&&subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
     request.upload.onprogress=event=>{ if(event.lengthComputable) onProgress(Math.round((event.loaded/event.total)*100)); };
     request.onload=()=>{
       let result={};
@@ -272,6 +273,8 @@ function openManage(item,mode){
   $('#manageTitle').textContent=mode==='move'?'Mover para outra pasta':'Editar informações';
   $('#manageDescription').textContent=mode==='move'?'Corrija a classificação sem reenviar ou reprocessar o áudio.':'Atualize os dados exibidos na biblioteca e no Studio Air.';
   $('#manageCategory').value=item.category;
+  $('#manageSubcategory').value=item.subcategory||'';
+  $('#manageSubcategoryField').hidden=item.category!=='Hora Certa';
   $('#manageTitleInput').value=item.title||item.fileName||'';
   $('#manageArtist').value=item.artist||'';
   $('#manageAlbum').value=item.album||'';
@@ -360,6 +363,7 @@ $('#trashTab').addEventListener('click',async()=>{
 $('#closeManage').addEventListener('click',closeManage);
 $('#cancelManage').addEventListener('click',closeManage);
 $('#manageModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeManage(); });
+$('#manageCategory').addEventListener('change',()=>{$('#manageSubcategoryField').hidden=$('#manageCategory').value!=='Hora Certa';if($('#manageCategory').value!=='Hora Certa')$('#manageSubcategory').value='';});
 $('#manageForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const button=$('#saveManage');
@@ -368,7 +372,7 @@ $('#manageForm').addEventListener('submit',async event=>{
   try{
     const id=$('#manageId').value;
     const payload=manageMode==='move'
-      ?{category:$('#manageCategory').value}
+      ?{category:$('#manageCategory').value,subcategory:$('#manageCategory').value==='Hora Certa'?$('#manageSubcategory').value:''}
       :{title:$('#manageTitleInput').value,artist:$('#manageArtist').value,album:$('#manageAlbum').value,year:$('#manageYear').value};
     await actionRequest(`/api/imports/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
     closeManage();
@@ -387,6 +391,7 @@ $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
 document.querySelectorAll('.source-tab').forEach(button=>button.addEventListener('click',()=>selectImportMode(button.dataset.mode)));
 $('#importFiles').addEventListener('change',()=>renderUploadQueue());
+$('#importCategory').addEventListener('change',()=>{$('#importSubcategoryField').hidden=$('#importCategory').value!=='Hora Certa';if($('#importCategory').value!=='Hora Certa')$('#importSubcategory').value='';});
 $('#importForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const files=selectedFiles();
@@ -401,7 +406,7 @@ $('#importForm').addEventListener('submit',async event=>{
     states[0]={label:'Enviando pacote 0%',progress:0,type:'sending'};
     renderUploadQueue(states);
     try{
-      const result=await sendFile(file,$('#importCategory').value,progress=>{
+      const result=await sendFile(file,$('#importCategory').value,$('#importSubcategory').value.trim(),progress=>{
         states[0]={label:progress===100?'Verificando e extraindo...':`Enviando pacote ${progress}%`,progress,type:'sending'};
         renderUploadQueue(states);
       },true);
@@ -417,7 +422,7 @@ $('#importForm').addEventListener('submit',async event=>{
     states[index]={label:'Enviando 0%',progress:0,type:'sending'};
     renderUploadQueue(states);
     try{
-      const result=await sendFile(files[index],$('#importCategory').value,progress=>{
+      const result=await sendFile(files[index],$('#importCategory').value,$('#importSubcategory').value.trim(),progress=>{
         states[index]={label:`Enviando ${progress}%`,progress,type:'sending'};
         renderUploadQueue(states);
       });
