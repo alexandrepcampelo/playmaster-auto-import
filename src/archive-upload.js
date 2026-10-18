@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import yauzl from 'yauzl';
-import { decodeMetadata,safeCategory,safeFileName } from './upload.js';
+import { decodeMetadata,safeCategory,safeFileName,safeSubcategory } from './upload.js';
 
 const audioExtensions=new Set(['.mp3','.wav','.flac','.aac','.m4a','.ogg']);
 
@@ -43,8 +43,8 @@ function openEntry(zip,entry){
   return new Promise((resolve,reject)=>zip.openReadStream(entry,(error,stream)=>error?reject(error):resolve(stream)));
 }
 
-async function extractZip(filePath,{inboxDir,category,maxFiles,maxExtractedBytes}){
-  const categoryDir=join(inboxDir,category);
+async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes}){
+  const categoryDir=subcategory?join(inboxDir,category,subcategory):join(inboxDir,category);
   await mkdir(categoryDir,{recursive:true});
   const zip=await openZip(filePath);
   const extracted=[];
@@ -105,6 +105,7 @@ async function extractZip(filePath,{inboxDir,category,maxFiles,maxExtractedBytes
 export async function receiveArchive(req,{inboxDir,tempDir,maxBytes,maxFiles,maxExtractedBytes}){
   const fileName=safeArchiveName(decodeMetadata(req.headers['x-file-name-b64']));
   const category=safeCategory(decodeMetadata(req.headers['x-category-b64']));
+  const subcategory=category==='Hora Certa'?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
   const declaredSize=Number(req.headers['content-length']);
   if(Number.isFinite(declaredSize) && declaredSize>maxBytes) throw Object.assign(new Error('O ZIP excede o limite permitido.'),{statusCode:413});
   await mkdir(tempDir,{recursive:true});
@@ -118,8 +119,8 @@ export async function receiveArchive(req,{inboxDir,tempDir,maxBytes,maxFiles,max
   try{
     await pipeline(req,limiter,createWriteStream(temporary,{flags:'wx'}));
     if(size===0) throw Object.assign(new Error('O arquivo ZIP está vazio.'),{statusCode:400});
-    const files=await extractZip(temporary,{inboxDir,category,maxFiles,maxExtractedBytes});
-    return {fileName,category,size,files};
+    const files=await extractZip(temporary,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes});
+    return {fileName,category,subcategory,size,files};
   }finally{
     await rm(temporary,{force:true});
   }
