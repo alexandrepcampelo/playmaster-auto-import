@@ -80,6 +80,7 @@ export class ImportStore{
       id:`${this.stationCode}-${year}-${String(next).padStart(8,'0')}`,
       fileName:String(input.fileName||'audio'),
       category:String(input.category||'Outros'),
+      subcategory:String(input.subcategory||''),
       source:String(input.source||'auto-import'),
       sourcePath:String(input.sourcePath||''),
       originalPath:String(input.originalPath||''),
@@ -117,7 +118,7 @@ export class ImportStore{
   async update(id,patch){
     const item=this.state.items.find(row=>row.id===id);
     if(!item) return null;
-    const allowed=['category','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
+    const allowed=['category','subcategory','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
     const previousStatus=item.status;
     for(const key of allowed){
       if(Object.hasOwn(patch,key)) item[key]=patch[key];
@@ -140,7 +141,7 @@ export class ImportStore{
   async revise(id,patch){
     const item=this.findById(id);
     if(!item || item.status==='deleted') return null;
-    const allowed=['category','title','artist','album','year'];
+    const allowed=['category','subcategory','title','artist','album','year'];
     for(const key of allowed){
       if(Object.hasOwn(patch,key)) item[key]=String(patch[key]??'').trim();
     }
