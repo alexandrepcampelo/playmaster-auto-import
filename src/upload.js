@@ -28,6 +28,10 @@ export function safeCategory(value){
   return String(value||'Outros').normalize('NFC').replace(/[\u0000-\u001f\u007f<>:"/\\|?*.]/g,'-').trim().slice(0,80)||'Outros';
 }
 
+export function safeSubcategory(value){
+  return String(value||'').normalize('NFC').replace(/[\u0000-\u001f\u007f<>:"/\\|?*.]/g,'-').trim().slice(0,80);
+}
+
 async function availablePath(directory,fileName){
   const parsed=parse(fileName);
   let candidate=join(directory,fileName);
@@ -43,10 +47,11 @@ async function availablePath(directory,fileName){
 export async function receiveUpload(req,{inboxDir,maxBytes}){
   const fileName=safeFileName(decodeMetadata(req.headers['x-file-name-b64']));
   const category=safeCategory(decodeMetadata(req.headers['x-category-b64']));
+  const subcategory=category==='Hora Certa'?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
   const declaredSize=Number(req.headers['content-length']);
   if(Number.isFinite(declaredSize) && declaredSize>maxBytes) throw Object.assign(new Error('Arquivo excede o limite permitido.'),{statusCode:413});
 
-  const categoryDir=join(inboxDir,category);
+  const categoryDir=subcategory?join(inboxDir,category,subcategory):join(inboxDir,category);
   await mkdir(categoryDir,{recursive:true});
   const filePath=await availablePath(categoryDir,fileName);
   const temporary=join(categoryDir,`.upload-${randomUUID()}.tmp`);
@@ -63,7 +68,7 @@ export async function receiveUpload(req,{inboxDir,maxBytes}){
     await pipeline(req,limiter,createWriteStream(temporary,{flags:'wx'}));
     if(size===0) throw Object.assign(new Error('O arquivo enviado está vazio.'),{statusCode:400});
     await rename(temporary,filePath);
-    return {filePath,fileName,category,size};
+    return {filePath,fileName,category,subcategory,size};
   }catch(error){
     await rm(temporary,{force:true});
     throw error;
