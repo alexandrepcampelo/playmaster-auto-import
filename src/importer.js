@@ -101,13 +101,15 @@ export class AutoImporter{
       return item?{item,duplicate:false,alreadyKnown:true}:null;
     }
     this.known.set(filePath,signature);
-    const category=relativePath.includes('/')?relativePath.split('/')[0]:'Outros';
+    const pathParts=relativePath.split('/');
+    const category=pathParts.length>1?pathParts[0]:'Outros';
+    const subcategory=category==='Hora Certa'&&pathParts.length>2?pathParts[1]:'';
     const digest=await checksum(filePath);
     const existing=this.store.findByChecksum(digest);
     if(existing) return {item:existing,duplicate:true};
 
     const item=await this.store.create({
-      fileName:basename(filePath),category,source:'vps-inbox',sourcePath:relativePath,
+      fileName:basename(filePath),category,subcategory,source:'vps-inbox',sourcePath:relativePath,
       size:info.size,checksum:digest,status:'processing',processingStage:'preserving'
     });
     try{
