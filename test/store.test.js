@@ -37,6 +37,8 @@ test('publica itens prontos e registra entregas sem republicá-los',async()=>{
     assert.equal(store.ready({after:ready.publishedAt}).length,0);
     assert.equal(store.ready({consumer:'traffic'}).length,0);
     assert.equal(store.ready({consumer:'studio'}).length,1);
+    assert.equal(store.ready({consumer:'studio',limit:1,offset:0}).length,1);
+    assert.equal(store.ready({consumer:'studio',limit:1,offset:1}).length,0);
 
     const restored=new ImportStore({dataDir:directory,stationCode:'PM'});
     await restored.init();
