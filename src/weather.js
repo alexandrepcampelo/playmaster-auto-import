@@ -25,6 +25,7 @@ export function createWeatherService({apiKey,location,fetchImpl=fetch,clock=()=>
           humidity:values[1],
           maximumC:values[2],
           minimumC:values[3],
+          isDay:Number(current?.is_day)===1,
           updatedAt:String(current?.last_updated||""),
           location:[payload?.location?.name,payload?.location?.region].filter(Boolean).join(", ")||"Jundiaí/SP",
           source:"WeatherAPI"
