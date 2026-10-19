@@ -15,9 +15,9 @@ test('expõe somente os dados seguros da biblioteca central',()=>{
 });
 
 test('valida consulta incremental e confirmação do consumidor',()=>{
-  const params=new URLSearchParams('limit=50&category=Vinhetas&consumer=traffic&after=2026-09-19T12:00:00Z');
+  const params=new URLSearchParams('limit=50&offset=100&category=Vinhetas&consumer=traffic&after=2026-09-19T12:00:00Z');
   assert.deepEqual(parseLibraryQuery(params),{
-    limit:50,category:'Vinhetas',consumer:'traffic',after:'2026-09-19T12:00:00.000Z'
+    limit:50,offset:100,category:'Vinhetas',consumer:'traffic',after:'2026-09-19T12:00:00.000Z'
   });
   assert.deepEqual(validateAcknowledgement({consumer:'Traffic',status:'synced',message:'ok'}),{
     consumer:'traffic',status:'synced',message:'ok'
