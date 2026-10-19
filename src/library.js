@@ -35,6 +35,7 @@ export function publicLibraryItem(item){
 
 export function parseLibraryQuery(searchParams){
   const limit=Math.max(1,Math.min(Number(searchParams.get('limit'))||100,500));
+  const offset=Math.max(0,Math.min(Math.trunc(Number(searchParams.get('offset')))||0,1_000_000));
   const category=String(searchParams.get('category')||'').trim();
   const consumer=String(searchParams.get('consumer')||'').trim().toLowerCase();
   if(consumer && !consumers.has(consumer)){
@@ -53,7 +54,7 @@ export function parseLibraryQuery(searchParams){
     }
     after=new Date(parsed).toISOString();
   }
-  return {limit,category,consumer,after};
+  return {limit,offset,category,consumer,after};
 }
 
 export function validateAcknowledgement(input){
