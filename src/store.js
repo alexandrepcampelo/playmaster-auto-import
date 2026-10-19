@@ -51,14 +51,16 @@ export class ImportStore{
     return this.state.items.find(item=>item.id===id)||null;
   }
 
-  ready({limit=100,category='',consumer='',after=''}={}){
+  ready({limit=100,offset=0,category='',consumer='',after=''}={}){
+    const pageSize=Math.max(1,Math.min(Number(limit)||100,500));
+    const start=Math.max(0,Math.trunc(Number(offset)||0));
     return this.state.items
       .filter(item=>item.status==='ready')
       .filter(item=>!category || item.category===category)
       .filter(item=>!consumer || item.deliveries?.[consumer]?.status!=='synced')
       .filter(item=>!after || String(item.publishedAt||item.updatedAt||item.createdAt)>after)
       .sort((left,right)=>String(left.publishedAt||left.updatedAt||left.createdAt).localeCompare(String(right.publishedAt||right.updatedAt||right.createdAt)))
-      .slice(0,Math.max(1,Math.min(Number(limit)||100,500)));
+      .slice(start,start+pageSize);
   }
 
   counts(){
