@@ -13,13 +13,13 @@ test('normaliza tempo atual e extrema diária e mantém cache por 15 minutos',as
       assert.equal(new URL(url).searchParams.get('q'),'-23.1857,-46.8978');
       return response({
         location:{name:'Jundiaí',region:'São Paulo'},
-        current:{temp_c:22.5,humidity:64,last_updated:'2026-10-14 12:00'},
+        current:{temp_c:22.5,humidity:64,is_day:0,last_updated:'2026-10-14 12:00'},
         forecast:{forecastday:[{day:{maxtemp_c:28.1,mintemp_c:17.3}}]}
       });
     }
   });
   const first=await service.get();
-  assert.deepEqual(first,{temperatureC:22.5,humidity:64,maximumC:28.1,minimumC:17.3,updatedAt:'2026-10-14 12:00',location:'Jundiaí, São Paulo',source:'WeatherAPI'});
+  assert.deepEqual(first,{temperatureC:22.5,humidity:64,maximumC:28.1,minimumC:17.3,isDay:false,updatedAt:'2026-10-14 12:00',location:'Jundiaí, São Paulo',source:'WeatherAPI'});
   now+=14*60*1000;
   assert.equal((await service.get()).temperatureC,22.5);
   assert.equal(calls,1);
