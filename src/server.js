@@ -158,8 +158,8 @@ const server=http.createServer(async(req,res)=>{
         if(!audioCategories.has(category)) return json(res,400,{error:'Pasta de áudio inválida.'});
         patch.category=category;
       }
-      if(Object.hasOwn(input,'subcategory')) patch.subcategory=patch.category==='Hora Certa'?String(input.subcategory||'').normalize('NFC').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'-').trim().slice(0,80):'';
-      else if(patch.category && patch.category!=='Hora Certa') patch.subcategory='';
+      if(Object.hasOwn(input,'subcategory')) patch.subcategory=['Hora Certa','Temperatura'].includes(patch.category)?String(input.subcategory||'').normalize('NFC').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'-').trim().slice(0,80):'';
+      else if(patch.category && !['Hora Certa','Temperatura'].includes(patch.category)) patch.subcategory='';
       for(const [key,max] of [['title',200],['artist',200],['album',200],['year',12]]){
         if(Object.hasOwn(input,key)) patch[key]=String(input[key]??'').trim().slice(0,max);
       }

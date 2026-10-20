@@ -147,7 +147,7 @@ function sendFile(file,category,subcategory,onProgress,archive=false){
     request.setRequestHeader('content-type','application/octet-stream');
     request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
     request.setRequestHeader('x-category-b64',encodeMetadata(category));
-    if(category==='Hora Certa'&&subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
+    if(['Hora Certa','Temperatura'].includes(category)&&subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
     request.upload.onprogress=event=>{ if(event.lengthComputable) onProgress(Math.round((event.loaded/event.total)*100)); };
     request.onload=()=>{
       let result={};
@@ -363,7 +363,7 @@ $('#trashTab').addEventListener('click',async()=>{
 $('#closeManage').addEventListener('click',closeManage);
 $('#cancelManage').addEventListener('click',closeManage);
 $('#manageModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeManage(); });
-$('#manageCategory').addEventListener('change',()=>{$('#manageSubcategoryField').hidden=$('#manageCategory').value!=='Hora Certa';if($('#manageCategory').value!=='Hora Certa')$('#manageSubcategory').value='';});
+$('#manageCategory').addEventListener('change',()=>{$('#manageSubcategoryField').hidden=!['Hora Certa','Temperatura'].includes($('#manageCategory').value);if(!['Hora Certa','Temperatura'].includes($('#manageCategory').value))$('#manageSubcategory').value='';});
 $('#manageForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const button=$('#saveManage');
@@ -372,7 +372,7 @@ $('#manageForm').addEventListener('submit',async event=>{
   try{
     const id=$('#manageId').value;
     const payload=manageMode==='move'
-      ?{category:$('#manageCategory').value,subcategory:$('#manageCategory').value==='Hora Certa'?$('#manageSubcategory').value:''}
+      ?{category:$('#manageCategory').value,subcategory:['Hora Certa','Temperatura'].includes($('#manageCategory').value)?$('#manageSubcategory').value:''}
       :{title:$('#manageTitleInput').value,artist:$('#manageArtist').value,album:$('#manageAlbum').value,year:$('#manageYear').value};
     await actionRequest(`/api/imports/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
     closeManage();
@@ -391,7 +391,7 @@ $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
 document.querySelectorAll('.source-tab').forEach(button=>button.addEventListener('click',()=>selectImportMode(button.dataset.mode)));
 $('#importFiles').addEventListener('change',()=>renderUploadQueue());
-$('#importCategory').addEventListener('change',()=>{$('#importSubcategoryField').hidden=$('#importCategory').value!=='Hora Certa';if($('#importCategory').value!=='Hora Certa')$('#importSubcategory').value='';});
+$('#importCategory').addEventListener('change',()=>{$('#importSubcategoryField').hidden=!['Hora Certa','Temperatura'].includes($('#importCategory').value);if(!['Hora Certa','Temperatura'].includes($('#importCategory').value))$('#importSubcategory').value='';});
 $('#importForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const files=selectedFiles();
