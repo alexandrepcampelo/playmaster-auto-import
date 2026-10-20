@@ -62,7 +62,7 @@
         <label class="category-label">Pasta / categoria<select id="importCategory">
           <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
         </select></label>
-        <label id="importSubcategoryField" class="category-label" hidden>Voz / subcategoria<input id="importSubcategory" maxlength="80" placeholder="Ex.: Voz masculina"><small>Este nome identifica a voz dos áudios de Hora Certa.</small></label>
+        <label id="importSubcategoryField" class="category-label" hidden>Voz / subcategoria<input id="importSubcategory" maxlength="80" placeholder="Ex.: Voz Masculina"><small>Identifica a voz dos áudios de Hora Certa ou Temperatura.</small></label>
         <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong id="dropTitle">Escolher arquivos de áudio</strong><small id="dropHint">MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small><em id="dropNote">Os originais serão preservados</em></label>
         <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
         <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Importar selecionados</button></div>
@@ -76,7 +76,7 @@
         <input id="manageId" type="hidden">
         <div id="moveFields" class="manage-fields"><label class="category-label">Mover para a pasta<select id="manageCategory">
           <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
-        </select></label><label id="manageSubcategoryField" class="category-label" hidden>Voz / subcategoria<input id="manageSubcategory" maxlength="80" placeholder="Ex.: Voz masculina"></label><p class="manage-note">O ID e o áudio processado serão mantidos.</p></div>
+        </select></label><label id="manageSubcategoryField" class="category-label" hidden>Voz / subcategoria<input id="manageSubcategory" maxlength="80" placeholder="Ex.: Voz Masculina"></label><p class="manage-note">O ID e o áudio processado serão mantidos.</p></div>
         <div id="editFields" class="manage-fields" hidden>
           <label>Título<input id="manageTitleInput" maxlength="200"></label>
           <label>Artista<input id="manageArtist" maxlength="200"></label>
