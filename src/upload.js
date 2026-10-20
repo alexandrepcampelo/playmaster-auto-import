@@ -47,7 +47,7 @@ async function availablePath(directory,fileName){
 export async function receiveUpload(req,{inboxDir,maxBytes}){
   const fileName=safeFileName(decodeMetadata(req.headers['x-file-name-b64']));
   const category=safeCategory(decodeMetadata(req.headers['x-category-b64']));
-  const subcategory=category==='Hora Certa'?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
+  const subcategory=['Hora Certa','Temperatura'].includes(category)?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
   const declaredSize=Number(req.headers['content-length']);
   if(Number.isFinite(declaredSize) && declaredSize>maxBytes) throw Object.assign(new Error('Arquivo excede o limite permitido.'),{statusCode:413});
 
