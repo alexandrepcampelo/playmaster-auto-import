@@ -105,7 +105,7 @@ async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxEx
 export async function receiveArchive(req,{inboxDir,tempDir,maxBytes,maxFiles,maxExtractedBytes}){
   const fileName=safeArchiveName(decodeMetadata(req.headers['x-file-name-b64']));
   const category=safeCategory(decodeMetadata(req.headers['x-category-b64']));
-  const subcategory=category==='Hora Certa'?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
+  const subcategory=['Hora Certa','Temperatura'].includes(category)?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
   const declaredSize=Number(req.headers['content-length']);
   if(Number.isFinite(declaredSize) && declaredSize>maxBytes) throw Object.assign(new Error('O ZIP excede o limite permitido.'),{statusCode:413});
   await mkdir(tempDir,{recursive:true});
