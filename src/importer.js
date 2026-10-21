@@ -109,7 +109,14 @@ export class AutoImporter{
     if(existing){
       const reclassified=existing.category!==category||String(existing.subcategory||'')!==subcategory;
       const updated=await this.store.update(existing.id,{category,subcategory});
-      return {item:updated||existing,duplicate:true,reclassified};
+      const current=updated||existing;
+      if(current.status==='ready') return {item:current,duplicate:true,reclassified};
+      // The Air only lists ready audios. Reuse an in-progress item's source so
+      // it can finish processing; an incomplete record without an original file
+      // must not suppress a fresh import.
+      if(current.originalPath && current.status==='processing'){
+        return {item:current,originalPath:current.originalPath,filePath,duplicate:false,recovered:true};
+      }
     }
 
     const item=await this.store.create({
