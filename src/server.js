@@ -247,7 +247,7 @@ const server=http.createServer(async(req,res)=>{
       const result=await importer.ingest(upload.filePath,{background:true});
       if(result?.duplicate) await rm(upload.filePath,{force:true});
       return json(res,result?.duplicate?200:202,{
-        ok:true,duplicate:Boolean(result?.duplicate),queued:Boolean(result?.queued),item:result?.item||null,
+        ok:true,duplicate:Boolean(result?.duplicate),reclassified:Boolean(result?.reclassified),queued:Boolean(result?.queued),item:result?.item||null,
         received:{fileName:upload.fileName,category:upload.category,subcategory:upload.subcategory,size:upload.size}
       });
     }
