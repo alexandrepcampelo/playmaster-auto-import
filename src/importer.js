@@ -108,7 +108,7 @@ export class AutoImporter{
     const existing=this.store.findByChecksum(digest);
     if(existing){
       const reclassified=existing.category!==category||String(existing.subcategory||'')!==subcategory;
-      const updated=await this.store.update(existing.id,{category,subcategory});
+      const updated=await this.store.update(existing.id,{fileName:basename(filePath),category,subcategory});
       const current=updated||existing;
       if(current.status==='ready') return {item:current,duplicate:true,reclassified};
       // The Air only lists ready audios. Reuse an in-progress item's source so
