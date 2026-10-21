@@ -108,8 +108,8 @@ export class AutoImporter{
     const existing=this.store.findByChecksum(digest);
     if(existing){
       const reclassified=existing.category!==category||String(existing.subcategory||'')!==subcategory;
-      const item=reclassified?await this.store.update(existing.id,{category,subcategory}):existing;
-      return {item,duplicate:true,reclassified};
+      const updated=await this.store.update(existing.id,{category,subcategory});
+      return {item:updated||existing,duplicate:true,reclassified};
     }
 
     const item=await this.store.create({
