@@ -28,6 +28,22 @@ jobs:
           npm run check
           npm test
 
+      - name: Preparar token privado da API
+        id: api-auth
+        env:
+          CONFIGURED_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
+        shell: bash
+        run: |
+          if [[ "$CONFIGURED_API_TOKEN" =~ ^[A-Za-z0-9_-]{32,256}$ ]]; then
+            API_TOKEN="$CONFIGURED_API_TOKEN"
+            echo "Usando o token API já configurado."
+          else
+            API_TOKEN="$(openssl rand -hex 32)"
+            echo "Token API ausente: uma chave segura será gerada e sincronizada nesta implantação."
+          fi
+          echo "::add-mask::$API_TOKEN"
+          echo "token=$API_TOKEN" >> "$GITHUB_OUTPUT"
+
       - name: Preparar acesso SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -69,7 +85,7 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           AUTO_IMPORT_ADMIN_USER: ${{ secrets.AUTO_IMPORT_ADMIN_USER }}
           AUTO_IMPORT_ADMIN_PASSWORD: ${{ secrets.AUTO_IMPORT_ADMIN_PASSWORD }}
-          AUTO_IMPORT_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
+          AUTO_IMPORT_API_TOKEN: ${{ steps.api-auth.outputs.token }}
           AUTO_IMPORT_SESSION_SECRET: ${{ secrets.AUTO_IMPORT_SESSION_SECRET }}
           WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
         run: |
@@ -179,19 +195,17 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
-          AUTO_IMPORT_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
+          AUTO_IMPORT_API_TOKEN: ${{ steps.api-auth.outputs.token }}
         shell: bash
         run: |
-          if [[ ! "$AUTO_IMPORT_API_TOKEN" =~ ^[A-Za-z0-9_-]{32,256}$ ]]; then
-            echo "AUTO_IMPORT_API_TOKEN ausente ou em formato inválido."
-            exit 1
-          fi
           printf 'proxy_set_header Authorization "Bearer %s";\n' "$AUTO_IMPORT_API_TOKEN" |
             ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
               'sudo install -d -o root -g root -m 700 /etc/nginx/snippets &&
                sudo tee /etc/nginx/snippets/playmaster-auto-import-auth.conf >/dev/null &&
                sudo chown root:root /etc/nginx/snippets/playmaster-auto-import-auth.conf &&
-               sudo chmod 600 /etc/nginx/snippets/playmaster-auto-import-auth.conf'
+               sudo chmod 600 /etc/nginx/snippets/playmaster-auto-import-auth.conf &&
+               sudo nginx -t &&
+               sudo systemctl reload nginx'
 
       - name: Validar subdomínio Auto Import
         run: |
@@ -201,7 +215,7 @@ jobs:
       - name: Diagnosticar integração meteorológica
         continue-on-error: true
         env:
-          AUTO_IMPORT_API_TOKEN: ${{ secrets.AUTO_IMPORT_API_TOKEN }}
+          AUTO_IMPORT_API_TOKEN: ${{ steps.api-auth.outputs.token }}
           WEATHERAPI_KEY: ${{ secrets.WEATHERAPI_KEY }}
         run: |
           if [ -z "$WEATHERAPI_KEY" ]; then
