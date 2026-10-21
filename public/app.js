@@ -426,7 +426,7 @@ $('#importForm').addEventListener('submit',async event=>{
         states[index]={label:`Enviando ${progress}%`,progress,type:'sending'};
         renderUploadQueue(states);
       });
-      states[index]={label:result.reclassified?`Registro existente atualizado para ${result.item?.category||$('#importCategory').value}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.duplicate?'Arquivo já existente':result.queued?`Recebido · ${result.item?.id||'ID gerado'}`:`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
+      states[index]={label:result.reclassified?`Registro existente atualizado para ${result.item?.category||$('#importCategory').value}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.duplicate?`Já constava na Biblioteca · ${result.item?.category||'Outros'}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.queued?`Recebido · ${result.item?.id||'ID gerado'}`:`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
     }catch(error){
       states[index]={label:error.message,progress:100,type:'error'};
     }
