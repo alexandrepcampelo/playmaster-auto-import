@@ -195,7 +195,9 @@ async function refresh(){
   const button=$('#refresh');
   button.disabled=true;
   try{
-    const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=30';
+    const query=currentLibraryView==='trash'?'':$('#librarySearch').value.trim();
+    const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':`/api/imports?limit=${query?500:30}&q=${encodeURIComponent(query)}`;
+    $('#librarySearch').parentElement.hidden=currentLibraryView==='trash';
     const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
@@ -384,6 +386,11 @@ $('#manageForm').addEventListener('submit',async event=>{
   }
 });
 
+let librarySearchTimer=null;
+$('#librarySearch').addEventListener('input',()=>{
+  clearTimeout(librarySearchTimer);
+  librarySearchTimer=setTimeout(()=>void refresh(),250);
+});
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
 $('#closeImport').addEventListener('click',closeImport);
