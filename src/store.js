@@ -31,10 +31,14 @@ export class ImportStore{
     }
   }
 
-  list(limit=100){
+  list(limit=100,offset=0,query=''){
+    const normalizedQuery=String(query||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();
+    const pageSize=Math.max(1,Math.min(Number(limit)||100,500));
+    const start=Math.max(0,Math.trunc(Number(offset)||0));
     return this.state.items.filter(item=>item.status!=='deleted')
+      .filter(item=>!normalizedQuery||[item.fileName,item.title,item.category,item.subcategory,item.id].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR').includes(normalizedQuery))
       .sort((left,right)=>String(right.updatedAt||right.createdAt).localeCompare(String(left.updatedAt||left.createdAt)))
-      .slice(0,Math.max(1,Math.min(Number(limit)||100,500)));
+      .slice(start,start+pageSize);
   }
 
   trashed(limit=100){
