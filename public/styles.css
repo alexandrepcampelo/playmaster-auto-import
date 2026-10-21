@@ -115,6 +115,10 @@ main{width:calc(100% - 20px);margin-top:14px}
 .item-actions button.danger{color:#ff7a91;border-top:1px solid rgba(255,82,110,.2);border-radius:0}
 .item-actions button.danger span{color:#ff617b}
 .library-tabs{display:flex;align-items:center;gap:6px;margin-bottom:14px}
+.library-search{display:flex;align-items:center;gap:8px;height:36px;margin:0 0 12px;padding:0 10px;border:1px solid rgba(36,217,255,.28);border-radius:7px;background:#071d30;color:#69e4fb}
+.library-search>span{font-size:20px;line-height:1}
+.library-search input{width:100%;border:0;outline:0;background:transparent;color:#e9fbff;font:inherit;font-size:12px}
+.library-search input::placeholder{color:#7799ad}
 .library-tab{height:31px;padding:0 12px;border:1px solid rgba(36,217,255,.28);border-radius:7px;background:#071d30;color:#8fb2c7;font-size:9px;font-weight:800;cursor:pointer}
 .library-tab.active{border-color:#2bdcff;background:#0d4965;color:#e9fbff}
 .library-tab.trash.active{border-color:#ff617b;background:#4a2030;color:#ff9eae}
