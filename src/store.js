@@ -40,7 +40,7 @@ export class ImportStore{
   }
 
   findByChecksum(checksum){
-    return this.state.items.find(item=>item.checksum===checksum)||null;
+    return this.state.items.find(item=>item.checksum===checksum&&!['deleted','error'].includes(item.status))||null;
   }
 
   findBySourcePath(sourcePath){
