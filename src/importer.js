@@ -103,10 +103,14 @@ export class AutoImporter{
     this.known.set(filePath,signature);
     const pathParts=relativePath.split('/');
     const category=pathParts.length>1?pathParts[0]:'Outros';
-    const subcategory=category==='Hora Certa'&&pathParts.length>2?pathParts[1]:'';
+    const subcategory=['Hora Certa','Temperatura'].includes(category)&&pathParts.length>2?pathParts[1]:'';
     const digest=await checksum(filePath);
     const existing=this.store.findByChecksum(digest);
-    if(existing) return {item:existing,duplicate:true};
+    if(existing){
+      const reclassified=existing.category!==category||String(existing.subcategory||'')!==subcategory;
+      const item=reclassified?await this.store.update(existing.id,{category,subcategory}):existing;
+      return {item,duplicate:true,reclassified};
+    }
 
     const item=await this.store.create({
       fileName:basename(filePath),category,subcategory,source:'vps-inbox',sourcePath:relativePath,
