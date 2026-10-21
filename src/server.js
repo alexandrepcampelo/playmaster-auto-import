@@ -142,7 +142,7 @@ const server=http.createServer(async(req,res)=>{
     });
     if(url.pathname==='/api/imports' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;
-      return json(res,200,{items:store.list(url.searchParams.get('limit'))});
+      return json(res,200,{items:store.list(url.searchParams.get('limit'),url.searchParams.get('offset'),url.searchParams.get('q'))});
     }
     if(url.pathname==='/api/trash' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
