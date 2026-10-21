@@ -126,7 +126,7 @@ export class ImportStore{
   async update(id,patch){
     const item=this.state.items.find(row=>row.id===id);
     if(!item) return null;
-    const allowed=['category','subcategory','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
+    const allowed=['fileName','category','subcategory','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
     const previousStatus=item.status;
     for(const key of allowed){
       if(Object.hasOwn(patch,key)) item[key]=patch[key];
