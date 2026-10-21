@@ -32,7 +32,9 @@ export class ImportStore{
   }
 
   list(limit=100){
-    return this.state.items.filter(item=>item.status!=='deleted').slice(-Math.max(1,Math.min(Number(limit)||100,500))).reverse();
+    return this.state.items.filter(item=>item.status!=='deleted')
+      .sort((left,right)=>String(right.updatedAt||right.createdAt).localeCompare(String(left.updatedAt||left.createdAt)))
+      .slice(0,Math.max(1,Math.min(Number(limit)||100,500)));
   }
 
   trashed(limit=100){
