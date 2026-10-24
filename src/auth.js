@@ -1,6 +1,6 @@
 import { createHmac,createHash,randomBytes,timingSafeEqual } from 'node:crypto';
 
-const SESSION_SECONDS=8*60*60;
+export const SESSION_SECONDS=30*24*60*60;
 
 function digest(value){
   return createHash('sha256').update(String(value)).digest();

@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LoginLimiter,createSession,parseCookies,secureEqual,verifySession } from '../src/auth.js';
+import { LoginLimiter,SESSION_SECONDS,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from '../src/auth.js';
 
 test('cria, valida e expira uma sessão assinada',()=>{
   const secret='segredo-de-sessao-com-mais-de-32-caracteres';
   const token=createSession('admin',secret,1_000);
   assert.equal(verifySession(token,secret,2_000).username,'admin');
+  assert.match(sessionCookie(token),new RegExp(`Max-Age=${SESSION_SECONDS}`));
   assert.equal(verifySession(`${token}alterado`,secret,2_000),null);
-  assert.equal(verifySession(token,secret,1_000+(8*60*60*1000)+1),null);
+  assert.equal(verifySession(token,secret,1_000+(SESSION_SECONDS*1000)+1),null);
 });
 
 test('compara credenciais e interpreta cookies',()=>{
