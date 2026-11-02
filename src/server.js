@@ -21,7 +21,7 @@ const loginLimiter=new LoginLimiter();
 const weatherService=createWeatherService({apiKey:config.weatherApiKey,location:config.weatherLocation});
 
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
-const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros']);
+const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Voice Track','Hora Certa','Temperatura','Outros']);
 
 function json(res,status,payload){
   res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -83,7 +83,7 @@ async function streamProcessedAudio(req,res,item){
   if(!item?.processedPath || item.status==='deleted') return json(res,404,{error:'Áudio processado ainda não está disponível.'});
   const info=await stat(item.processedPath);
   const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
-  const headers={'content-type':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
+  const headers={'content-type':extname(item.processedPath).toLowerCase()==='.wav'?'audio/wav':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
   if(range){
     const start=range[1]?Number(range[1]):0;
     const end=range[2]?Math.min(Number(range[2]),info.size-1):info.size-1;
@@ -240,6 +240,25 @@ const server=http.createServer(async(req,res)=>{
         ok:true,queued:true,count:items.length,duplicates:results.filter(result=>result?.duplicate).length,
         items,received:{fileName:archive.fileName,category:archive.category,subcategory:archive.subcategory,size:archive.size}
       });
+    }
+    if(url.pathname==='/api/voice-track' && req.method==='POST'){
+      if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
+      const upload=await receiveUpload(req,{inboxDir:config.processedDir,maxBytes:config.maxUploadBytes});
+      if(upload.category!=='Voice Track' || extname(upload.fileName).toLowerCase()!=='.wav'){
+        await rm(upload.filePath,{force:true});
+        return json(res,400,{error:'Voice Track aceita apenas arquivos WAV.'});
+      }
+      const duration=Number(req.headers['x-audio-duration']);
+      try{
+        const item=await store.create({
+          fileName:upload.fileName,category:'Voice Track',source:'voice-track',
+          originalPath:upload.filePath,processedPath:upload.filePath,
+          size:upload.size,duration:Number.isFinite(duration)&&duration>=0&&duration<86400?duration:0,
+          title:upload.fileName.replace(/\.wav$/i,''),sourceFormat:'WAV',
+          outputFormat:'WAV original',processingStage:'ready',status:'ready'
+        });
+        return json(res,201,{ok:true,ready:true,item:publicLibraryItem(item)});
+      }catch(error){await rm(upload.filePath,{force:true});throw error}
     }
     if(url.pathname==='/api/uploads' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
