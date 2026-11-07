@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { createReadStream } from 'node:fs';
 import { readFile,rm,stat } from 'node:fs/promises';
 import { extname,join,normalize,resolve,sep } from 'node:path';
@@ -22,6 +24,63 @@ const weatherService=createWeatherService({apiKey:config.weatherApiKey,location:
 
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Voice Track','Hora Certa','Temperatura','Outros']);
+
+
+function isPublicIp(address){
+  const version=isIP(address);
+  if(version===4){
+    const parts=address.split('.').map(Number);
+    const [a,b]=parts;
+    return !(a===0||a===10||a===127||a>=224||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===100&&b>=64&&b<=127)||(a===198&&(b===18||b===19)));
+  }
+  if(version===6){
+    const ip=address.toLowerCase();
+    return !(ip==='::'||ip==='::1'||ip.startsWith('fc')||ip.startsWith('fd')||ip.startsWith('fe8')||ip.startsWith('fe9')||ip.startsWith('fea')||ip.startsWith('feb')||ip.startsWith('::ffff:'));
+  }
+  return false;
+}
+async function validateRssTarget(input){
+  let target;
+  try{target=new URL(input)}catch{return null}
+  if(target.protocol!=='https:'||target.username||target.password||(target.port&&target.port!=='443')) return null;
+  const host=target.hostname.toLowerCase().replace(/^\[|\]$/g,'');
+  if(!host||host==='localhost'||host.endsWith('.localhost')||host.endsWith('.local')) return null;
+  const literal=isIP(host);
+  const addresses=literal?[{address:host}]:await lookup(host,{all:true,verbatim:true}).catch(()=>[]);
+  if(!addresses.length||addresses.some(item=>!isPublicIp(item.address))) return null;
+  return target;
+}
+async function fetchRssFeed(input){
+  let target=input;
+  for(let redirect=0;redirect<=3;redirect++){
+    target=await validateRssTarget(target);
+    if(!target) throw Object.assign(new Error('Endereço RSS inválido ou não público.'),{statusCode:400});
+    const response=await fetch(target,{redirect:'manual',signal:AbortSignal.timeout(10000),headers:{accept:'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.1','user-agent':'PlayMaster Air RSS Reader/1.0'}});
+    if([301,302,303,307,308].includes(response.status)){
+      const location=response.headers.get('location');
+      if(!location||redirect===3) throw Object.assign(new Error('Redirecionamento do feed inválido.'),{statusCode:502});
+      target=new URL(location,target).href;
+      continue;
+    }
+    if(!response.ok) throw Object.assign(new Error('O site de notícias respondeu HTTP '+response.status+'.'),{statusCode:502});
+    const reader=response.body?.getReader();
+    if(!reader) throw Object.assign(new Error('O feed RSS veio vazio.'),{statusCode:502});
+    const chunks=[];let size=0;
+    try{
+      while(true){
+        const {done,value}=await reader.read();
+        if(done) break;
+        size+=value.byteLength;
+        if(size>512_000){await reader.cancel();throw Object.assign(new Error('O feed RSS excede o limite de 500 KB.'),{statusCode:413})}
+        chunks.push(Buffer.from(value));
+      }
+    }finally{reader.releaseLock()}
+    const xml=Buffer.concat(chunks).toString('utf8');
+    if(!/<(?:\?xml\b|rss\b|feed\b|rdf:RDF\b)/i.test(xml.slice(0,2048))) throw Object.assign(new Error('O endereço não retornou um feed RSS ou Atom válido.'),{statusCode:422});
+    return xml;
+  }
+  throw Object.assign(new Error('Não foi possível acessar o feed RSS.'),{statusCode:502});
+}
 
 function json(res,status,payload){
   res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -128,6 +187,15 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/me' && req.method==='GET'){
       const session=panelSession(req);
       return session?json(res,200,{authenticated:true,user:session.username}):json(res,401,{authenticated:false});
+    }
+    if(url.pathname==='/api/rss' && req.method==='GET'){
+      if(!requireReadAccess(req,res)) return;
+      const feedUrl=url.searchParams.get('url')||'';
+      try{
+        const xml=await fetchRssFeed(feedUrl);
+        res.writeHead(200,{'content-type':'application/xml; charset=utf-8','cache-control':'private, no-store'});
+        return res.end(xml);
+      }catch(error){return json(res,error.statusCode||502,{error:error.name==='TimeoutError'?'O site demorou para responder.':error.message||'Não foi possível carregar o feed RSS.'});}
     }
     if(url.pathname==='/api/weather' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;
