@@ -1,4 +1,4 @@
-import { access,copyFile,mkdir,readdir,rm,stat } from 'node:fs/promises';
+import { access,copyFile,mkdir,readdir,realpath,rename,rm,stat } from 'node:fs/promises';
 import { basename,extname,join,relative,resolve,sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -30,10 +30,11 @@ async function walk(directory,excluded=[]){
 }
 
 export class AutoImporter{
-  constructor({inboxDir,originalsDir,processedDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store,directoryStore}){
+  constructor({inboxDir,originalsDir,processedDir,libraryDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store,directoryStore}){
     this.inboxDir=inboxDir;
     this.originalsDir=originalsDir;
     this.processedDir=processedDir;
+    this.libraryDir=libraryDir;
     this.pollIntervalMs=pollIntervalMs;
     this.audioSettings={targetLufs,truePeakDb,silenceThresholdDb,silenceDuration};
     this.store=store;
@@ -49,6 +50,7 @@ export class AutoImporter{
     await mkdir(this.inboxDir,{recursive:true});
     await mkdir(this.originalsDir,{recursive:true});
     await mkdir(this.processedDir,{recursive:true});
+    await mkdir(this.libraryDir,{recursive:true});
     await this.scan();
     this.resumePending();
     this.timer=setInterval(()=>void this.scan(),this.pollIntervalMs);
@@ -73,38 +75,7 @@ export class AutoImporter{
   async scan(){
     if(this.scanPromise) return this.scanPromise;
     this.scanPromise=(async()=>{
-      const configured=this.directoryStore?.list()||[];
-      if(!configured.length){
-        for(const filePath of await walk(this.inboxDir)){
-          const result=await this.ingest(filePath);
-          if(result?.duplicate) await rm(filePath,{force:true});
-        }
-        return;
-      }
-      const enabled=configured.filter(item=>item.active&&item.autoCatalog);
-      const excluded=configured.filter(item=>!item.active||!item.autoCatalog).map(item=>resolve(item.path));
-      const roots=enabled.filter(item=>!enabled.some(parent=>parent.id!==item.id&&resolve(item.path).startsWith(resolve(parent.path)+sep)));
-      for(const root of roots){
-        const files=await walk(root.path,excluded);
-        for(const filePath of files){
-          const matches=enabled.filter(item=>{const path=resolve(item.path);return resolve(filePath).startsWith(path+sep)||resolve(filePath)===path;}).sort((a,b)=>resolve(b.path).length-resolve(a.path).length);
-          const matched=matches[0]||root;
-          let category=matched.name;
-          let subcategory='';
-          if(matched.type==='subfolder'){
-            const parent=configured.find(item=>item.id===matched.parentId);
-            category=parent?.name||category;
-            subcategory=matched.name;
-          }else{
-            const nested=relative(matched.path,filePath).split(sep);
-            if(nested.length>1) subcategory=nested[0];
-          }
-          const result=await this.ingest(filePath,{category,subcategory});
-          if(result?.duplicate) await rm(filePath,{force:true});
-        }
-      }
-      const unconfigured=await walk(this.inboxDir,configured.map(item=>resolve(item.path)));
-      for(const filePath of unconfigured){
+      for(const filePath of await walk(this.inboxDir)){
         const result=await this.ingest(filePath);
         if(result?.duplicate) await rm(filePath,{force:true});
       }
@@ -176,10 +147,26 @@ export class AutoImporter{
         inputLufs:analysis.inputLufs,cueIn:analysis.cueIn,cueOut:analysis.cueOut,
         processingStage:'converting'
       });
-      const processedPath=await convertAudio(originalPath,{
+      const temporaryProcessedPath=await convertAudio(originalPath,{
         processedDir:this.processedDir,id:item.id,targetLufs:this.audioSettings.targetLufs,
         truePeakDb:this.audioSettings.truePeakDb,measurement:analysis.loudness
       });
+      await this.store.update(item.id,{processingStage:'publishing'});
+      const directories=this.directoryStore?.list()||[];
+      const folder=directories.find(row=>row.type==='folder'&&row.name===item.category);
+      const child=folder&&item.subcategory?directories.find(row=>row.type==='subfolder'&&row.parentId===folder.id&&row.name===item.subcategory):null;
+      const destinationDir=child?.path||folder?.path||join(this.libraryDir,item.category,item.subcategory||'');
+      await mkdir(destinationDir,{recursive:true});
+      const libraryRoot=await realpath(this.libraryDir);
+      const actualDestination=await realpath(destinationDir);
+      if(actualDestination!==libraryRoot&&!actualDestination.startsWith(libraryRoot+sep)){
+        throw new Error('O destino do áudio está fora da Biblioteca do VPS.');
+      }
+      const processedPath=join(actualDestination,`${item.id}.mp3`);
+      const publishingPath=join(actualDestination,`.${item.id}.publishing.mp3`);
+      await copyFile(temporaryProcessedPath,publishingPath);
+      await rename(publishingPath,processedPath);
+      await rm(temporaryProcessedPath,{force:true});
       await this.store.update(item.id,{processedPath,processingStage:'verifying'});
       const output=await analyzeAudio(processedPath,this.audioSettings);
       const ready=await this.store.update(item.id,{
