@@ -449,3 +449,6 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .directory-browser-empty{padding:24px;color:#789db2;font-size:11px;text-align:center}
 .directory-browser-card .modal-actions{margin-top:14px}
 @media(max-width:700px){.directory-browser-current{grid-template-columns:1fr}.directory-browser-current button{justify-self:start}}
+
+/* Ícones personalizados e navegador da raiz do servidor */
+.directory-custom-icon{display:block;width:24px;height:24px;object-fit:contain}.directory-icon-picker{margin-top:7px}.directory-icon-picker input{cursor:default}.directory-icon-file{background:rgba(24,116,154,.08)}.directory-browser-entry.directory-icon-file span:first-child{font-size:17px}
