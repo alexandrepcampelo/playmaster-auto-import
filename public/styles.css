@@ -374,3 +374,16 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .type-cell .catalog-category-icon svg{width:22px;height:22px}
 .trash-item>.catalog-category-icon{width:42px;height:42px;flex-basis:42px}
 .trash-item>.catalog-category-icon svg{width:32px;height:32px}
+
+
+/* Categorias laterais e subpastas horizontais na biblioteca central. */
+.folder-browser{padding:14px!important}
+.folder-browser>.title{display:none}
+.folder-tree{gap:4px;padding:0}
+.folder-select{width:100%;flex:0 0 auto;min-height:38px}
+.folder-select .catalog-category-icon{flex:0 0 25px}
+.folder-child,.folder-toggle,.folder-line{display:none!important}
+.library-subfolders{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid rgba(78,126,157,.2)}
+.subcategory-chip{min-height:29px;padding:0 12px;border:1px solid #29465e;border-radius:6px;background:#0c2034;color:#9fb8ca;font-size:10px;font-weight:650;white-space:nowrap;cursor:pointer}
+.subcategory-chip:hover{border-color:#42c9ef;color:#e9f7ff}
+.subcategory-chip.active{border-color:#27b9ed;background:#10344d;color:#e8f8ff}
