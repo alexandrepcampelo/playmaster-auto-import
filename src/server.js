@@ -145,16 +145,20 @@ async function validateCatalogDirectory(input){
   const libraryRoot=await realpath(config.inboxDir);
   const requestedBase=resolve(String(input.basePath||parent?.path||libraryRoot));
   let basePath;
-  try{basePath=await realpath(requestedBase);}catch{throw Object.assign(new Error('Selecione um diretório existente da Biblioteca.'),{statusCode:400});}
-  const baseRelative=relative(libraryRoot,basePath);
-  if(baseRelative==='..'||baseRelative.startsWith('..'+sep)||resolve(basePath)!==libraryRoot&&!baseRelative) throw Object.assign(new Error('O caminho precisa estar dentro da Biblioteca.'),{statusCode:400});
+  try{basePath=await realpath(requestedBase);}catch{throw Object.assign(new Error('Selecione um diretório existente no computador/servidor.'),{statusCode:400});}
+  const customIcon=String(input.customIcon||'').trim();
+  if(customIcon){
+    const iconPath=await realpath(resolve(customIcon)).catch(()=>null);
+    const extension=extname(customIcon).toLowerCase();
+    if(!iconPath||!['.png','.jpg','.jpeg','.webp','.gif'].includes(extension)||(await stat(iconPath)).isFile()!==true) throw Object.assign(new Error('Selecione um arquivo de ícone PNG, JPG, WEBP ou GIF válido.'),{statusCode:400});
+  }
   if(parent&&basePath!==resolve(parent.path)) throw Object.assign(new Error('A subpasta deve ser criada dentro da pasta principal selecionada.'),{statusCode:400});
   const target=resolve(basePath,name);
   const samePath=directoryStore.list().find(item=>item.id!==input.id&&resolve(item.path)===target);
   if(samePath) throw Object.assign(new Error('Este caminho já está vinculado a outro diretório do Catálogo.'),{statusCode:409});
   const duplicate=directoryStore.list().find(item=>item.id!==input.id&&item.type===type&&item.parentId===parentId&&item.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR'));
   if(duplicate) throw Object.assign(new Error('Já existe uma pasta com esse nome neste nível.'),{statusCode:409});
-  return {name,type,parentId,icon,path:target,autoCatalog:Boolean(input.autoCatalog),active:Boolean(input.active)};
+  return {name,type,parentId,icon,customIcon,path:target,autoCatalog:Boolean(input.autoCatalog),active:Boolean(input.active)};
 }
 
 async function removeStoredFile(filePath,baseDir){
@@ -231,25 +235,33 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/catalog-directories/browse' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
-      const libraryRoot=await realpath(config.inboxDir);
-      const requested=resolve(url.searchParams.get('path')||libraryRoot);
+      const requested=resolve(url.searchParams.get('path')||'/');
+      const mode=url.searchParams.get('mode')==='icons'?'icons':'folders';
       let current;
       try{current=await realpath(requested);}catch{return json(res,400,{error:'Diretório não encontrado.'});}
-      const relativePath=relative(libraryRoot,current);
-      if(relativePath==='..'||relativePath.startsWith('..'+sep)||resolve(current)!==libraryRoot&&!relativePath) return json(res,403,{error:'A navegação está limitada à Biblioteca.'});
       const entries=await readdir(current,{withFileTypes:true});
-      const folders=[];
+      const folders=[];const files=[];
       for(const entry of entries){
-        if(!entry.isDirectory()) continue;
         const childPath=join(current,entry.name);
         const actual=await realpath(childPath).catch(()=>null);
         if(!actual) continue;
-        const childRelative=relative(libraryRoot,actual);
-        if(childRelative==='..'||childRelative.startsWith('..'+sep)||resolve(actual)!==libraryRoot&&!childRelative) continue;
-        folders.push({name:entry.name,path:actual});
+        if(entry.isDirectory()) folders.push({name:entry.name,path:actual});
+        else if(mode==='icons'&&entry.isFile()&&['.png','.jpg','.jpeg','.webp','.gif'].includes(extname(entry.name).toLowerCase())) files.push({name:entry.name,path:actual});
       }
       folders.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
-      return json(res,200,{root:libraryRoot,path:current,parent:current===libraryRoot?'':dirname(current),folders});
+      files.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+      return json(res,200,{root:'/',path:current,parent:current==='/'?'':dirname(current),folders,files,mode});
+    }
+    if(url.pathname==='/api/catalog-icon' && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      const requested=String(url.searchParams.get('path')||'');
+      const extension=extname(requested).toLowerCase();
+      const types={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif'};
+      if(!types[extension]) return json(res,400,{error:'Formato de ícone não permitido.'});
+      const actual=await realpath(resolve(requested)).catch(()=>null);
+      if(!actual||(await stat(actual)).isFile()!==true) return json(res,404,{error:'Ícone não encontrado.'});
+      res.writeHead(200,{'content-type':types[extension],'cache-control':'private, max-age=300','x-content-type-options':'nosniff'});
+      return createReadStream(actual).pipe(res);
     }
     if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
