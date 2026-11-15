@@ -118,9 +118,8 @@ function libraryRowTemplate(item){
     <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
   </div>`;
   return `<div class="library-row" role="row">
-    <span class="library-cell type-cell" title="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></span>
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
-      ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
+      ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" data-title="${escapeText(title)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
       <span class="library-name-text">${escapeText(title)}</span>
       <button class="item-menu-btn table-menu-button" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Mais opções de ${escapeText(title)}" aria-expanded="false">•••</button>
     </span>${menu}</span>
@@ -142,6 +141,7 @@ function renderLibrary(){
   if(!container) return;
   if(currentLibraryView==='trash'){
     if(subfolders) subfolders.innerHTML='';
+    $('#libraryFolderTitle').textContent='Lixeira';
     container.innerHTML=currentItems.length?currentItems.map(trashTemplate).join(''):'<p class="empty">A Lixeira está vazia.</p>';
     return;
   }
@@ -153,7 +153,9 @@ function renderLibrary(){
     if(!query) return true;
     return [item.title,item.fileName,item.artist,item.category,item.subcategory,item.id].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(query));
   });
-  const headers=['Tipo','Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
+  const folderTitle=selectedFolderSubcategory||selectedFolderCategory||'Biblioteca';
+  $('#libraryFolderTitle').textContent=folderTitle;
+  const headers=['Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
   $('#libraryCount').textContent=`${filtered.length} arquivo(s)`;
   container.innerHTML=`<div class="library-table" role="table" aria-label="Arquivos da biblioteca">
     <div class="library-table-head" role="row">${headers.map(label=>`<span role="columnheader">${label}</span>`).join('')}</div>
@@ -312,26 +314,54 @@ async function refresh(){
 }
 
 let activeAudioButton=null;
+const previewPlayer=$('#previewPlayer');
+const audioProgress=$('#audioProgress');
+function updateAudioFooter(){
+  const duration=Number.isFinite(previewPlayer.duration)?previewPlayer.duration:0;
+  const current=Number.isFinite(previewPlayer.currentTime)?previewPlayer.currentTime:0;
+  $('#audioCurrentTime').textContent=formatDuration(current);
+  $('#audioDuration').textContent=formatDuration(duration);
+  audioProgress.max=duration||100;
+  if(!audioProgress.matches(':active')) audioProgress.value=duration?current:0;
+  audioProgress.disabled=!duration;
+}
 $('#items').addEventListener('click',async event=>{
   const button=event.target.closest('.play-audio');
   if(!button) return;
-  const player=$('#previewPlayer');
+  const player=previewPlayer;
   if(activeAudioButton===button && !player.paused){
     player.pause();
-    button.textContent='▶ Ouvir';
+    button.textContent='▶';
     return;
   }
-  if(activeAudioButton) activeAudioButton.textContent='▶ Ouvir';
+  if(activeAudioButton) activeAudioButton.textContent='▶';
   activeAudioButton=button;
-  if(player.getAttribute('src')!==button.dataset.url) player.src=button.dataset.url;
+  $('#audioNowPlaying').textContent=button.dataset.title||'Áudio selecionado';
+  if(player.getAttribute('src')!==button.dataset.url){
+    player.src=button.dataset.url;
+    audioProgress.value=0;
+  }
   try{
     await player.play();
-    button.textContent='Ⅱ Pausar';
+    button.textContent='Ⅱ';
+    updateAudioFooter();
   }catch{
-    button.textContent='Erro ao ouvir';
+    button.textContent='!';
   }
 });
-$('#previewPlayer').addEventListener('ended',()=>{ if(activeAudioButton) activeAudioButton.textContent='▶ Ouvir'; });
+audioProgress.addEventListener('input',()=>{
+  if(Number.isFinite(previewPlayer.duration)) previewPlayer.currentTime=Number(audioProgress.value);
+});
+previewPlayer.addEventListener('timeupdate',updateAudioFooter);
+previewPlayer.addEventListener('loadedmetadata',updateAudioFooter);
+previewPlayer.addEventListener('durationchange',updateAudioFooter);
+previewPlayer.addEventListener('play',updateAudioFooter);
+previewPlayer.addEventListener('pause',updateAudioFooter);
+previewPlayer.addEventListener('ended',()=>{
+  if(activeAudioButton) activeAudioButton.textContent='▶';
+  updateAudioFooter();
+});
+
 
 function closeItemMenus(except=''){
   document.querySelectorAll('.item-actions').forEach(menu=>{
