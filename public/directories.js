@@ -71,24 +71,13 @@ function refreshDirectorySelects(){
 }
 async function refreshAgentSyncStatus(){
  const wrap=$dir('agentSyncStatus');if(!wrap)return;
- try{
-  const status=await actionRequest('/api/agent/status');
-  if(status.connected){
-   const detail=status.status==='error'?'Falha: '+(status.error||'verifique o agente no Windows.'):status.status==='syncing'?'Sincronizando as pastas da Biblioteca...':'Conectado à pasta autorizada: '+(status.libraryRoot||'Windows');
-   wrap.innerHTML='<span class="agent-sync-indicator online"></span><div><strong>Agente Windows conectado</strong><p>'+directoryEscape(detail)+' · '+Number(status.created||0)+' pasta(s) criada(s), '+Number(status.existing||0)+' já existente(s)</p></div>';
-   wrap.classList.toggle('has-error',status.status==='error');
-  }else{
-   wrap.innerHTML='<span class="agent-sync-indicator"></span><div><strong>Agente Windows não conectado</strong><p>As pastas serão criadas no iCloud Drive quando o agente local estiver instalado e autorizado.</p></div>';
-   wrap.classList.remove('has-error');
-  }
- }catch(error){
-  wrap.innerHTML='<span class="agent-sync-indicator"></span><div><strong>Status da integração indisponível</strong><p>'+directoryEscape(error.message)+'</p></div>';
- }
+ wrap.innerHTML='<span class="agent-sync-indicator online"></span><div><strong>Biblioteca física no VPS</strong><p>Os diretórios e áudios processados ficam armazenados no servidor, sem depender do iCloud ou de um computador ligado.</p></div>';
+ wrap.classList.remove('has-error');
 }
 async function loadDirectorySettings(){
  const result=await actionRequest('/api/catalog-directories');
  catalogDirectories=result.items||[];
- directoryLibraryRoot=result.inboxDir||'';
+ directoryLibraryRoot=result.libraryBasePath||result.inboxDir||'';
  refreshDirectorySelects();renderDirectorySettings();renderLibrary();
  await refreshAgentSyncStatus();
 }
@@ -103,7 +92,7 @@ function updateDirectoryTypeFields(){
  const creatingParent=subfolder&&$dir('directoryParent').value==='__new_parent__';
  $dir('directoryNewParentField').hidden=!creatingParent;
  $dir('directoryNewParentName').required=creatingParent;
- const logicalRoot='iCloud Drive/Playmaster/biblioteca';
+ const logicalRoot=directoryLibraryRoot||'/app/storage/library';
  $dir('directoryParentField').hidden=!subfolder;
  $dir('directoryNameLabel').textContent=subfolder?'Nome da subpasta':'Nome da pasta';
  $dir('directoryPathLabelTitle').textContent='Destino na Biblioteca';
@@ -113,7 +102,7 @@ function updateDirectoryTypeFields(){
  const logicalParent=subfolder?(creatingParent?logicalRoot+'/'+(newParentName||'Nova pasta'):(parent?.destinationPath||logicalRoot+'/'+(parent?.name||''))):logicalRoot;
  const name=$dir('directoryName').value.trim();
  $dir('directoryPath').value=logicalParent+(name?'/'+name:'');
- $dir('directoryPathHint').textContent=(subfolder?'A nova subpasta será criada dentro da pasta principal selecionada.':'A nova pasta será criada diretamente dentro da biblioteca.')+' A criação física no iCloud Drive depende da integração local autorizada do Windows; este cadastro registra o destino sem mover ou apagar áudios.';
+ $dir('directoryPathHint').textContent=(subfolder?'A nova subpasta será criada dentro da pasta principal selecionada.':'A nova pasta será criada diretamente dentro da biblioteca.')+' A pasta será criada fisicamente no VPS e receberá os áudios processados desta categoria.';
 }
 function openDirectoryEditor(item=null){
  directoryEditingItem=item;
@@ -211,7 +200,7 @@ async function openDirectoryPath(id){
  try{
   const result=await actionRequest(`/api/catalog-directories/${encodeURIComponent(id)}/open`);
   pathToCopy=result.destinationPath||result.path;$dir('directoryPathTitle').textContent=result.name;$dir('directoryPathValue').textContent=result.destinationPath||result.path;
-  $dir('directoryPathStatus').textContent='Destino previsto no iCloud Drive. A criação física será feita quando houver acesso autorizado à pasta sincronizada no computador.';
+  $dir('directoryPathStatus').textContent='Caminho físico da pasta na Biblioteca do VPS.';
   $dir('directoryPathModal').hidden=false;document.body.classList.add('modal-open');
  }catch(error){alert(error.message);}
 }
