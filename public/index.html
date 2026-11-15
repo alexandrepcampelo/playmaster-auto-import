@@ -75,16 +75,14 @@
             <button id="openImport" class="primary" type="button">＋ Importar Áudio</button>
           </section>
           <section class="content catalog-content">
-            <article class="panel settings">
-        <div class="title"><div><small>PERFIL ATIVO</small><h2>Padrão PlayMaster</h2></div><span class="badge">Etapa 2</span></div>
-        <dl><div><dt>Formato de saída</dt><dd id="outputProfile">—</dd></div><div><dt>Normalização</dt><dd id="normalizationProfile">—</dd></div><div><dt>Originais preservados</dt><dd id="originals">—</dd></div><div><dt>Áudios processados</dt><dd id="processed">—</dd></div></dl>
-        <div class="analysis-list"><small>ANÁLISE AUTOMÁTICA</small><p>✓ Metadados e duração</p><p>✓ Conversão e normalização</p><p>✓ Silêncio inicial e final</p><p>✓ Cue In e Cue Out</p><p>✓ Original preservado</p></div>
-        <div class="folder-note"><strong>PASTAS DE ÁUDIO</strong><span>Músicas · Comerciais · Vinhetas · Intercons · Trilhas · Chamadas · Locução · Hora Certa · Temperatura · Outros</span></div>
+            <article class="panel folder-browser">
+        <div class="title"><div><small>NAVEGAÇÃO DA BIBLIOTECA</small><h2>Pastas e subpastas</h2></div></div>
+        <div id="folderTree" class="folder-tree" aria-label="Pastas da biblioteca"></div><div hidden><span id="outputProfile"></span><span id="normalizationProfile"></span><span id="originals"></span><span id="processed"></span></div>
       </article>
             <article class="panel recent">
         <div class="title"><div><small>BIBLIOTECA CENTRAL</small><h2>Arquivos processados</h2></div><div class="library-tabs"><button id="activeTab" class="library-tab active" type="button">Ativos</button><button id="trashTab" class="library-tab trash" type="button">Lixeira · <span id="trashTabCount">0</span></button></div></div>
         <label class="library-search"><span aria-hidden="true">⌕</span><input id="librarySearch" type="search" placeholder="Buscar por nome, categoria ou ID..." aria-label="Buscar nos áudios importados"></label>
-        <div id="items" class="items"><p class="empty">Nenhum áudio recebido até o momento.</p></div>
+        <div id="items" class="items library-table-wrap"><p class="empty">Nenhum áudio recebido até o momento.</p></div>
       </article>
           </section>
         </section>
