@@ -44,9 +44,7 @@ function openEntry(zip,entry){
 }
 
 async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes,directoryStore}){
-  const folder=directoryStore?.list().find(item=>item.type==='folder'&&item.name===category&&item.active);
-  const child=folder&&subcategory?directoryStore?.list().find(item=>item.type==='subfolder'&&item.parentId===folder.id&&item.name===subcategory&&item.active):null;
-  const categoryDir=child?.path||(subcategory?join(folder?.path||join(inboxDir,category),subcategory):folder?.path||join(inboxDir,category));
+  const categoryDir=subcategory?join(inboxDir,category,subcategory):join(inboxDir,category);
   await mkdir(categoryDir,{recursive:true});
   const zip=await openZip(filePath);
   const extracted=[];
