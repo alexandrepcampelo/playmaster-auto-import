@@ -158,7 +158,10 @@ async function validateCatalogDirectory(input){
   if(samePath) throw Object.assign(new Error('Este caminho já está vinculado a outro diretório do Catálogo.'),{statusCode:409});
   const duplicate=directoryStore.list().find(item=>item.id!==input.id&&item.type===type&&item.parentId===parentId&&item.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR'));
   if(duplicate) throw Object.assign(new Error('Já existe uma pasta com esse nome neste nível.'),{statusCode:409});
-  return {name,type,parentId,icon,customIcon,path:target,autoCatalog:Boolean(input.autoCatalog),active:Boolean(input.active)};
+  const libraryBasePath='iCloud Drive/Playmaster/biblioteca';
+  const parentDirectory=parent?`${libraryBasePath}/${parent.name}`:libraryBasePath;
+  const destinationPath=`${parentDirectory}/${name}`;
+  return {name,type,parentId,icon,customIcon,path:target,destinationPath,autoCatalog:Boolean(input.autoCatalog),active:Boolean(input.active)};
 }
 
 async function removeStoredFile(filePath,baseDir){
@@ -271,7 +274,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
-      return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir});
+      return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir,libraryBasePath:'iCloud Drive/Playmaster/biblioteca',destinationMode:'planned-local-sync'});
     }
     if(url.pathname==='/api/catalog-directories' && req.method==='POST'){
       if(!requirePanelSession(req,res)) return;
