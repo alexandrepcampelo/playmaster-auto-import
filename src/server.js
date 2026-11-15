@@ -2,8 +2,8 @@ import http from 'node:http';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { createReadStream } from 'node:fs';
-import { mkdir,readFile,rm,stat } from 'node:fs/promises';
-import { extname,join,normalize,resolve,sep } from 'node:path';
+import { mkdir,readFile,readdir,realpath,rm,stat } from 'node:fs/promises';
+import { dirname,extname,join,normalize,relative,resolve,sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { ImportStore } from './store.js';
@@ -134,7 +134,7 @@ function requirePanelSession(req,res){
   return false;
 }
 
-function validateCatalogDirectory(input){
+async function validateCatalogDirectory(input){
   const name=String(input.name||'').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim().slice(0,80);
   const type=input.type==='subfolder'?'subfolder':'folder';
   const parentId=type==='subfolder'?String(input.parentId||''):'';
@@ -142,12 +142,14 @@ function validateCatalogDirectory(input){
   if(!name) throw Object.assign(new Error('Informe o nome da pasta.'),{statusCode:400});
   if(type==='subfolder'&&(!parent||parent.type!=='folder'||!parent.active)) throw Object.assign(new Error('Selecione uma pasta principal ativa.'),{statusCode:400});
   const icon=directoryIcons.has(String(input.icon||''))?String(input.icon):'folder';
-  const base=resolve(config.inboxDir);
-  const raw=String(input.path||'').trim();
-  const target=resolve(raw?(raw.startsWith('/')?raw:join(base,raw)):(parent?join(parent.path,name):join(base,name)));
-  const relativePath=relative(base,target);
-  if(!relativePath||relativePath==='.'||relativePath.startsWith('..')||relativePath.includes(sep+'..')) throw Object.assign(new Error('O caminho precisa estar dentro do diretório de entrada do AutoImport.'),{statusCode:400});
-  if(parent&&(target===resolve(parent.path)||!target.startsWith(resolve(parent.path)+sep))) throw Object.assign(new Error('O caminho da subpasta precisa ficar dentro da pasta principal.'),{statusCode:400});
+  const libraryRoot=await realpath(config.inboxDir);
+  const requestedBase=resolve(String(input.basePath||parent?.path||libraryRoot));
+  let basePath;
+  try{basePath=await realpath(requestedBase);}catch{throw Object.assign(new Error('Selecione um diretório existente da Biblioteca.'),{statusCode:400});}
+  const baseRelative=relative(libraryRoot,basePath);
+  if(baseRelative==='..'||baseRelative.startsWith('..'+sep)||resolve(basePath)!==libraryRoot&&!baseRelative) throw Object.assign(new Error('O caminho precisa estar dentro da Biblioteca.'),{statusCode:400});
+  if(parent&&basePath!==resolve(parent.path)) throw Object.assign(new Error('A subpasta deve ser criada dentro da pasta principal selecionada.'),{statusCode:400});
+  const target=resolve(basePath,name);
   const samePath=directoryStore.list().find(item=>item.id!==input.id&&resolve(item.path)===target);
   if(samePath) throw Object.assign(new Error('Este caminho já está vinculado a outro diretório do Catálogo.'),{statusCode:409});
   const duplicate=directoryStore.list().find(item=>item.id!==input.id&&item.type===type&&item.parentId===parentId&&item.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR'));
@@ -227,6 +229,28 @@ const server=http.createServer(async(req,res)=>{
       try{return json(res,200,await weatherService.get());}
       catch(error){return json(res,error.statusCode||502,{error:error.message||'Dados meteorológicos indisponíveis.'});}
     }
+    if(url.pathname==='/api/catalog-directories/browse' && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      const libraryRoot=await realpath(config.inboxDir);
+      const requested=resolve(url.searchParams.get('path')||libraryRoot);
+      let current;
+      try{current=await realpath(requested);}catch{return json(res,400,{error:'Diretório não encontrado.'});}
+      const relativePath=relative(libraryRoot,current);
+      if(relativePath==='..'||relativePath.startsWith('..'+sep)||resolve(current)!==libraryRoot&&!relativePath) return json(res,403,{error:'A navegação está limitada à Biblioteca.'});
+      const entries=await readdir(current,{withFileTypes:true});
+      const folders=[];
+      for(const entry of entries){
+        if(!entry.isDirectory()) continue;
+        const childPath=join(current,entry.name);
+        const actual=await realpath(childPath).catch(()=>null);
+        if(!actual) continue;
+        const childRelative=relative(libraryRoot,actual);
+        if(childRelative==='..'||childRelative.startsWith('..'+sep)||resolve(actual)!==libraryRoot&&!childRelative) continue;
+        folders.push({name:entry.name,path:actual});
+      }
+      folders.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+      return json(res,200,{root:libraryRoot,path:current,parent:current===libraryRoot?'':dirname(current),folders});
+    }
     if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
       return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir});
@@ -234,7 +258,7 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/catalog-directories' && req.method==='POST'){
       if(!requirePanelSession(req,res)) return;
       const input=await body(req);
-      const directory=validateCatalogDirectory(input);
+      const directory=await validateCatalogDirectory(input);
       await mkdir(directory.path,{recursive:true});
       const item=await directoryStore.create(directory);
       return json(res,201,{ok:true,item});
@@ -255,7 +279,7 @@ const server=http.createServer(async(req,res)=>{
       const current=directoryStore.find(id);
       if(!current) return json(res,404,{error:'Diretório não encontrado.'});
       const input=await body(req);
-      const directory=validateCatalogDirectory({...input,id});
+      const directory=await validateCatalogDirectory({...input,id});
       if(current.type==='folder'&&directory.path!==current.path&&directoryStore.list().some(item=>item.parentId===id)) return json(res,409,{error:'Esta pasta possui subpastas. Altere primeiro os caminhos das subpastas.'});
       await mkdir(directory.path,{recursive:true});
       const item=await directoryStore.update(id,directory);
