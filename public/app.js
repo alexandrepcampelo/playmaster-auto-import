@@ -166,7 +166,6 @@ let importMode='files';
 let currentLibraryView='active';
 let currentItems=[];
 let manageMode='move';
-let librarySearchOpen=false;
 
 function selectedFiles(){
   const files=[...$('#importFiles').files];
@@ -257,7 +256,6 @@ async function refresh(){
   button.disabled=true;
   try{
     const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
-    $('#catalogSearchWrap').hidden=currentLibraryView==='trash'||!librarySearchOpen;
     const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
@@ -467,7 +465,6 @@ $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
 $('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
 $('#catalogTrash').addEventListener('click',()=>currentLibraryView==='trash'?$('#activeTab').click():$('#trashTab').click());
-$('#toggleLibrarySearch').addEventListener('click',()=>{librarySearchOpen=!librarySearchOpen;$('#catalogSearchWrap').hidden=currentLibraryView==='trash'||!librarySearchOpen;if(librarySearchOpen)$('#librarySearch').focus();else{$('#librarySearch').value='';renderLibrary();}});
 $('#closeImport').addEventListener('click',closeImport);
 $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
