@@ -50,37 +50,83 @@ function categoryClass(category){
   return String(category||'Outros').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-');
 }
 
-function itemTemplate(item){
-  const progress=stageProgress(item);
-  const state=item.status==='ready'?'ready':item.status==='error'?'error':'working';
-  const title=item.title||item.fileName;
-  const format=item.sourceFormat?`${item.sourceFormat}${item.outputFormat?' → MP3':''}`:'Formato original';
+const defaultLibraryFolders=['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros'];
+let selectedFolderCategory='';
+let selectedFolderSubcategory='';
+let expandedFolders={};
+
+function formatAddedDate(item){
+  const value=item.createdAt||item.addedAt||item.importedAt||item.receivedAt||item.created_at||item.updatedAt;
+  if(!value) return '—';
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'—':date.toLocaleDateString('pt-BR');
+}
+
+function folderTreeTemplate(){
+  const categories=[...new Set([...defaultLibraryFolders,...currentItems.map(item=>item.category||'Outros')])];
+  if(!selectedFolderCategory) selectedFolderCategory=categories[0]||'Músicas';
+  if(!categories.includes(selectedFolderCategory)){
+    selectedFolderCategory=categories[0]||'Músicas';
+    selectedFolderSubcategory='';
+  }
+  return categories.map(category=>{
+    const subcategories=[...new Set(currentItems.filter(item=>(item.category||'Outros')===category&&item.subcategory).map(item=>item.subcategory))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    const expanded=!!expandedFolders[category];
+    const selected=selectedFolderCategory===category&&!selectedFolderSubcategory;
+    return `<div class="folder-group">
+      <div class="folder-line">
+        <button class="folder-toggle" type="button" data-folder-toggle="${escapeText(category)}" aria-label="${expanded?'Recolher':'Expandir'} ${escapeText(category)}">${subcategories.length?(expanded?'⌄':'›'):'·'}</button>
+        <button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}"><span class="folder-glyph">▰</span><span>${escapeText(category)}</span></button>
+      </div>
+      ${expanded?subcategories.map(subcategory=>`<button class="folder-select folder-child ${selectedFolderCategory===category&&selectedFolderSubcategory===subcategory?'active':''}" type="button" data-folder-category="${escapeText(category)}" data-folder-subcategory="${escapeText(subcategory)}"><span class="folder-glyph">▰</span><span>${escapeText(subcategory)}</span></button>`).join(''):''}
+    </div>`;
+  }).join('');
+}
+
+function libraryRowTemplate(item){
+  const title=item.title||item.fileName||'Áudio sem nome';
+  const artist=item.artist||item.artists||'—';
+  const duration=formatDuration(item.duration);
+  const category=item.category||'Outros';
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
-  return `<div class="process-item ${state}">
-    <div class="process-head">
-      <span class="item-icon category-${categoryClass(item.category)}">♫</span>
-      <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)}${item.subcategory?` / ${escapeText(item.subcategory)}`:''} · ${escapeText(format)}</small></span>
-      <span class="process-status ${state}">${escapeText(stageLabel(item))}</span>
-      ${item.status==='ready' && item.processedPath?`<button class="play-audio" type="button" data-url="${escapeText(audioUrl)}">▶ Ouvir</button>`:`<b class="process-percent">${progress}%</b>`}
-      <button class="item-menu-btn" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Opções de ${escapeText(title)}" aria-expanded="false">•••</button>
-    </div>
-    <div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
-      <button type="button" data-action="move" data-id="${escapeText(item.id)}"><span>↪</span>Mover para outra pasta</button>
-      <button type="button" data-action="edit" data-id="${escapeText(item.id)}"><span>✎</span>Editar informações</button>
-      <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
-      <button class="danger" type="button" data-action="trash" data-id="${escapeText(item.id)}"><span>♲</span>Excluir da biblioteca</button>
-    </div>
-    ${item.status==='ready'?`<div class="metrics">
-      <span><small>DURAÇÃO</small><strong>${formatDuration(item.duration,true)}</strong></span>
-      <span><small>VOLUME</small><strong>${metric(item.outputLufs,' LUFS')}</strong></span>
-      <span><small>CUE IN</small><strong>${formatDuration(item.cueIn,true)}</strong></span>
-      <span><small>CUE OUT</small><strong>${formatDuration(item.cueOut,true)}</strong></span>
-      <span><small>PICO</small><strong>${metric(item.truePeak,' dBTP')}</strong></span>
-      <span><small>SAÍDA</small><strong>${escapeText(item.outputFormat||'Original')}</strong></span>
-    </div><p class="ready-note">✓ Pronto para Traffic e Studio Air</p>`:
-    item.status==='error'?`<p class="error-note">${escapeText(item.error||'Não foi possível processar este áudio.')}</p>`:
-    `<div class="stage-bar"><i style="width:${progress}%"></i></div><div class="stage-steps"><span>Metadados</span><span>Volume</span><span>Silêncio</span><span>Cue Points</span></div>`}
+  return `<div class="library-row" role="row">
+    <span class="library-cell type-cell" title="${escapeText(category)}">${escapeText(category)}</span>
+    <span class="library-cell name-cell" title="${escapeText(title)}">${escapeText(title)}</span>
+    <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
+    <span class="library-cell duration-cell">${escapeText(duration)}</span>
+    <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
+    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" disabled title="Editor de áudio — em preparação" aria-label="Editor de áudio">≋</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button" type="button" data-action="edit" data-id="${escapeText(item.id)}" title="Editar informações" aria-label="Editar informações">✎</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Excluir da biblioteca" aria-label="Excluir da biblioteca">⌫</button></span>
   </div>`;
+}
+
+function renderLibrary(){
+  const tree=$('#folderTree');
+  if(tree) tree.innerHTML=folderTreeTemplate();
+  const container=$('#items');
+  if(!container) return;
+  if(currentLibraryView==='trash'){
+    container.innerHTML=currentItems.length?currentItems.map(trashTemplate).join(''):'<p class="empty">A Lixeira está vazia.</p>';
+    return;
+  }
+  const query=$('#librarySearch').value.trim().toLocaleLowerCase('pt-BR');
+  const filtered=currentItems.filter(item=>{
+    const category=item.category||'Outros';
+    if(selectedFolderCategory&&category!==selectedFolderCategory) return false;
+    if(selectedFolderSubcategory&&(item.subcategory||'')!==selectedFolderSubcategory) return false;
+    if(!query) return true;
+    return [item.title,item.fileName,item.artist,item.category,item.subcategory,item.id].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(query));
+  });
+  const headers=['Tipo','Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
+  container.innerHTML=`<div class="library-table" role="table" aria-label="Arquivos da biblioteca">
+    <div class="library-table-head" role="row">${headers.map(label=>`<span role="columnheader">${label}</span>`).join('')}</div>
+    ${filtered.length?filtered.map(libraryRowTemplate).join(''):'<p class="empty">Nenhum arquivo nesta pasta.</p>'}
+  </div>`;
+}
+
+function itemTemplate(item){
+  return libraryRowTemplate(item);
 }
 
 function formatDate(value){
@@ -195,8 +241,7 @@ async function refresh(){
   const button=$('#refresh');
   button.disabled=true;
   try{
-    const query=currentLibraryView==='trash'?'':$('#librarySearch').value.trim();
-    const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':`/api/imports?limit=${query?500:30}&q=${encodeURIComponent(query)}`;
+    const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
     $('#librarySearch').parentElement.hidden=currentLibraryView==='trash';
     const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
@@ -216,10 +261,7 @@ async function refresh(){
     $('#originals').textContent=status.originalsDir;
     $('#processed').textContent=status.processedDir;
     currentItems=items;
-    const container=$('#items');
-    container.innerHTML=items.length
-      ?items.map(currentLibraryView==='trash'?trashTemplate:itemTemplate).join('')
-      :`<p class="empty">${currentLibraryView==='trash'?'A Lixeira está vazia.':'Nenhum áudio recebido até o momento.'}</p>`;
+    renderLibrary();
     document.querySelector('.connection span').textContent='Serviço conectado';
     document.querySelector('.connection i').style.background='#31ef72';
   }catch(error){
@@ -389,7 +431,22 @@ $('#manageForm').addEventListener('submit',async event=>{
 let librarySearchTimer=null;
 $('#librarySearch').addEventListener('input',()=>{
   clearTimeout(librarySearchTimer);
-  librarySearchTimer=setTimeout(()=>void refresh(),250);
+  librarySearchTimer=setTimeout(()=>renderLibrary(),120);
+});
+$('#folderTree').addEventListener('click',event=>{
+  const toggle=event.target.closest('[data-folder-toggle]');
+  if(toggle){
+    const category=toggle.dataset.folderToggle;
+    expandedFolders[category]=!expandedFolders[category];
+    renderLibrary();
+    return;
+  }
+  const select=event.target.closest('[data-folder-category]');
+  if(select){
+    selectedFolderCategory=select.dataset.folderCategory;
+    selectedFolderSubcategory=select.dataset.folderSubcategory||'';
+    renderLibrary();
+  }
 });
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
