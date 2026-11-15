@@ -292,7 +292,7 @@ const server=http.createServer(async(req,res)=>{
       if(!item) return json(res,404,{error:'Diretório não encontrado.'});
       let exists=false;
       try{exists=(await stat(item.path)).isDirectory();}catch{}
-      return json(res,200,{ok:true,path:item.path,exists,name:item.name});
+      return json(res,200,{ok:true,path:item.path,destinationPath:item.destinationPath||'',exists,name:item.name});
     }
     if(catalogDirectoryMatch && req.method==='PUT'){
       if(!requirePanelSession(req,res)) return;
