@@ -26,6 +26,7 @@ export const config={
   port:positiveInteger(process.env.PORT,3600),
   dataDir:resolve(process.env.DATA_DIR||'./data'),
   inboxDir:resolve(process.env.INBOX_DIR||'./storage/inbox'),
+  libraryDir:resolve(process.env.LIBRARY_DIR||'./storage/library'),
   originalsDir:resolve(process.env.ORIGINALS_DIR||'./storage/originals'),
   processedDir:resolve(process.env.PROCESSED_DIR||'./storage/processed'),
   tempDir:resolve(process.env.TEMP_DIR||'./storage/temp'),
