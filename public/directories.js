@@ -10,8 +10,10 @@ function isIOSFilePicker(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||
 function openICloudFolderPicker(){
  const picker=document.createElement('input');
  picker.type='file';picker.multiple=true;picker.setAttribute('webkitdirectory','');picker.setAttribute('directory','');picker.accept='audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg';
+ picker.style.position='fixed';picker.style.left='-10000px';picker.style.width='1px';picker.style.height='1px';picker.style.opacity='0';
  picker.addEventListener('change',()=>{
-  const files=[...(picker.files||[])];if(!files.length)return;
+  const files=[...(picker.files||[])];picker.remove();
+  if(!files.length)return;
   const input=$dir('importFiles');
   openImport();selectImportMode('folder');
   const transfer=new DataTransfer();files.forEach(file=>transfer.items.add(file));input.files=transfer.files;
@@ -20,6 +22,8 @@ function openICloudFolderPicker(){
   renderUploadQueue();
   $dir('directoryModal').hidden=true;directoryEditorPausedForFolderImport=true;
  });
+ picker.addEventListener('cancel',()=>picker.remove(),{once:true});
+ document.body.appendChild(picker);
  picker.click();
 }
 function directoryEscape(value){const node=document.createElement('span');node.textContent=String(value??'');return node.innerHTML;}
@@ -89,7 +93,7 @@ function openDirectoryEditor(item=null){
  $dir('directoryForm').reset();
  $dir('directoryId').value=item?.id||'';
  $dir('directoryName').value=item?.name||'';
- $dir('directoryType').value=item?.type||'subfolder';
+ $dir('directoryType').value=item?.type||(isIOSFilePicker()?'folder':'subfolder');
  $dir('directoryIcon').value=item?.icon||'folder';
  $dir('directoryCustomIcon').value=item?.customIcon||'';
  $dir('directoryAutoCatalog').checked=item?Boolean(item.autoCatalog):true;
