@@ -118,6 +118,7 @@ function renderLibrary(){
   if(!container) return;
   if(currentLibraryView==='trash'){
     container.innerHTML=currentItems.length?currentItems.map(trashTemplate).join(''):'<p class="empty">A Lixeira está vazia.</p>';
+    updateBulkDeleteButton();
     return;
   }
   const query=$('#librarySearch').value.trim().toLocaleLowerCase('pt-BR');
@@ -392,6 +393,7 @@ $('#items').addEventListener('click',async event=>{
     }else if(action==='trash'){
       if(!confirm(`Mover “${item.title||item.fileName}” para a Lixeira?`)) return;
       await actionRequest(`/api/imports/${encodeURIComponent(id)}`,{method:'DELETE'});
+      selectedLibraryIds.delete(id);
     }else if(action==='restore'){
       await actionRequest(`/api/trash/${encodeURIComponent(id)}/restore`,{method:'POST'});
     }else if(action==='purge'){
