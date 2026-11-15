@@ -402,3 +402,8 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .audio-progress::-moz-range-thumb{width:10px;height:10px;border:2px solid #e6f8ff;border-radius:50%;background:#16b9ed}
 .audio-progress:disabled{opacity:.4;cursor:default}
 @media(max-width:700px){.library-audio-footer{margin-top:8px;padding:10px 6px 7px}.audio-footer-meta{font-size:9px}}
+
+
+/* Botão Importar Áudio em verde */
+#openImport.catalog-action.primary{background:linear-gradient(135deg,#168447,#22b45f);border-color:#35d477;color:#f2fff7}
+#openImport.catalog-action.primary:hover:not(:disabled){background:linear-gradient(135deg,#1a9b52,#2acb70);border-color:#65e99a;color:#fff}
