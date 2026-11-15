@@ -240,6 +240,7 @@ function openImport(){
 function closeImport(){
   $('#importModal').hidden=true;
   document.body.classList.remove('modal-open');
+  document.dispatchEvent(new Event('playmaster:import-closed'));
 }
 
 function sendFile(file,category,subcategory,onProgress,archive=false){
