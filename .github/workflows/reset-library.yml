@@ -60,7 +60,7 @@ jobs:
           test -f docker-compose.yml
           grep -q 'container_name: playmaster-auto-import' docker-compose.yml
           test -d data
-          mkdir -p storage/inbox storage/originals storage/processed storage/temp
+          mkdir -p storage/inbox storage/originals storage/processed storage/temp storage/library
 
           echo "Parando o AutoImport para evitar gravações durante a limpeza..."
           docker compose stop playmaster-auto-import
