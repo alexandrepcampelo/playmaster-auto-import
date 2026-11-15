@@ -1,5 +1,5 @@
 import { access,copyFile,mkdir,readdir,rm,stat } from 'node:fs/promises';
-import { basename,extname,join,relative } from 'node:path';
+import { basename,extname,join,relative,resolve,sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { analyzeAudio,convertAudio,displayTitle } from './audio-processor.js';
@@ -17,25 +17,27 @@ async function checksum(filePath){
   return hash.digest('hex');
 }
 
-async function walk(directory){
-  const entries=await readdir(directory,{withFileTypes:true});
+async function walk(directory,excluded=[]){
+  let entries;
+  try{entries=await readdir(directory,{withFileTypes:true});}catch(error){if(error.code==='ENOENT') return [];throw error;}
   const files=[];
   for(const entry of entries){
     const path=join(directory,entry.name);
-    if(entry.isDirectory()) files.push(...await walk(path));
+    if(entry.isDirectory()&&!excluded.some(blocked=>path===blocked||path.startsWith(blocked+sep))) files.push(...await walk(path,excluded));
     else if(entry.isFile() && supportedExtensions.has(extname(entry.name).toLowerCase())) files.push(path);
   }
   return files;
 }
 
 export class AutoImporter{
-  constructor({inboxDir,originalsDir,processedDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store}){
+  constructor({inboxDir,originalsDir,processedDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store,directoryStore}){
     this.inboxDir=inboxDir;
     this.originalsDir=originalsDir;
     this.processedDir=processedDir;
     this.pollIntervalMs=pollIntervalMs;
     this.audioSettings={targetLufs,truePeakDb,silenceThresholdDb,silenceDuration};
     this.store=store;
+    this.directoryStore=directoryStore;
     this.known=new Map();
     this.timer=null;
     this.scanPromise=null;
@@ -71,8 +73,38 @@ export class AutoImporter{
   async scan(){
     if(this.scanPromise) return this.scanPromise;
     this.scanPromise=(async()=>{
-      const files=await walk(this.inboxDir);
-      for(const filePath of files){
+      const configured=this.directoryStore?.list()||[];
+      if(!configured.length){
+        for(const filePath of await walk(this.inboxDir)){
+          const result=await this.ingest(filePath);
+          if(result?.duplicate) await rm(filePath,{force:true});
+        }
+        return;
+      }
+      const enabled=configured.filter(item=>item.active&&item.autoCatalog);
+      const excluded=configured.filter(item=>!item.active||!item.autoCatalog).map(item=>resolve(item.path));
+      const roots=enabled.filter(item=>!enabled.some(parent=>parent.id!==item.id&&resolve(item.path).startsWith(resolve(parent.path)+sep)));
+      for(const root of roots){
+        const files=await walk(root.path,excluded);
+        for(const filePath of files){
+          const matches=enabled.filter(item=>{const path=resolve(item.path);return resolve(filePath).startsWith(path+sep)||resolve(filePath)===path;}).sort((a,b)=>resolve(b.path).length-resolve(a.path).length);
+          const matched=matches[0]||root;
+          let category=matched.name;
+          let subcategory='';
+          if(matched.type==='subfolder'){
+            const parent=configured.find(item=>item.id===matched.parentId);
+            category=parent?.name||category;
+            subcategory=matched.name;
+          }else{
+            const nested=relative(matched.path,filePath).split(sep);
+            if(nested.length>1) subcategory=nested[0];
+          }
+          const result=await this.ingest(filePath,{category,subcategory});
+          if(result?.duplicate) await rm(filePath,{force:true});
+        }
+      }
+      const unconfigured=await walk(this.inboxDir,configured.map(item=>resolve(item.path)));
+      for(const filePath of unconfigured){
         const result=await this.ingest(filePath);
         if(result?.duplicate) await rm(filePath,{force:true});
       }
@@ -80,8 +112,8 @@ export class AutoImporter{
     return this.scanPromise;
   }
 
-  async ingest(filePath,{background=false}={}){
-    const preparation=this.prepareQueue.then(()=>this.prepare(filePath));
+  async ingest(filePath,{background=false,category='',subcategory=''}={}){
+    const preparation=this.prepareQueue.then(()=>this.prepare(filePath,{category,subcategory}));
     this.prepareQueue=preparation.catch(()=>{});
     const accepted=await preparation;
     if(!accepted || accepted.duplicate || accepted.alreadyKnown || accepted.failed) return accepted;
@@ -91,7 +123,7 @@ export class AutoImporter{
     return processing;
   }
 
-  async prepare(filePath){
+  async prepare(filePath,{category:configuredCategory='',subcategory:configuredSubcategory=''}={}){
     let info;
     try{info=await stat(filePath);}catch(error){if(error.code==='ENOENT') return null;throw error;}
     const signature=`${info.size}:${info.mtimeMs}`;
@@ -102,8 +134,8 @@ export class AutoImporter{
     }
     this.known.set(filePath,signature);
     const pathParts=relativePath.split('/');
-    const category=pathParts.length>1?pathParts[0]:'Outros';
-    const subcategory=['Hora Certa','Temperatura'].includes(category)&&pathParts.length>2?pathParts[1]:'';
+    const category=configuredCategory|| (pathParts.length>1?pathParts[0]:'Outros');
+    const subcategory=configuredCategory?String(configuredSubcategory||''):pathParts.length>2?pathParts[1]:'';
     const digest=await checksum(filePath);
     const existing=this.store.findByChecksum(digest);
     if(existing){

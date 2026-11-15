@@ -98,7 +98,18 @@
         <section id="testimonialView" class="page-view module-placeholder" hidden><div class="module-heading"><span class="module-symbol">◉</span><div><small>PLAYMASTER AUTO IMPORT</small><h1>Testemunhal</h1><p>Gerenciamento dos conteúdos de testemunhais.</p></div></div><article class="panel coming-soon"><span class="coming-icon">◉</span><h2>Módulo em preparação</h2><p>Esta área já está reservada na navegação. Vamos desenvolver suas funções em uma próxima etapa, sem interferir na Biblioteca Central de Áudio.</p></article></section>
         <section id="journalismView" class="page-view module-placeholder" hidden><div class="module-heading"><span class="module-symbol">▤</span><div><small>PLAYMASTER AUTO IMPORT</small><h1>Jornalismo</h1><p>Organização de chamadas, boletins e conteúdos jornalísticos.</p></div></div><article class="panel coming-soon"><span class="coming-icon">▤</span><h2>Módulo em preparação</h2><p>Esta área já está reservada na navegação. Vamos desenvolver suas funções em uma próxima etapa, sem interferir na Biblioteca Central de Áudio.</p></article></section>
         <section id="reportsView" class="page-view module-placeholder" hidden><div class="module-heading"><span class="module-symbol">▥</span><div><small>PLAYMASTER AUTO IMPORT</small><h1>Relatórios</h1><p>Acompanhamento das importações e do processamento.</p></div></div><article class="panel coming-soon"><span class="coming-icon">▥</span><h2>Módulo em preparação</h2><p>Esta área já está reservada na navegação. Vamos desenvolver suas funções em uma próxima etapa, sem interferir na Biblioteca Central de Áudio.</p></article></section>
-        <section id="settingsView" class="page-view module-placeholder" hidden><div class="module-heading"><span class="module-symbol">⚙</span><div><small>PLAYMASTER AUTO IMPORT</small><h1>Configurações</h1><p>Preferências e parâmetros do Auto Import.</p></div></div><article class="panel coming-soon"><span class="coming-icon">⚙</span><h2>Módulo em preparação</h2><p>Esta área já está reservada na navegação. Vamos desenvolver suas funções em uma próxima etapa, sem interferir na Biblioteca Central de Áudio.</p></article></section>
+        <section id="settingsView" class="page-view" hidden>
+          <div class="module-heading"><span class="module-symbol">⚙</span><div><small>PLAYMASTER AUTO IMPORT</small><h1>Configurações</h1><p>Organização e parâmetros do Catálogo.</p></div></div>
+          <article class="panel directory-settings-panel">
+            <div class="settings-subtabs"><button class="settings-subtab" type="button" data-settings-tab="general">Geral</button><button class="settings-subtab active" type="button" data-settings-tab="directories">Diretórios do Catálogo</button></div>
+            <section id="directorySettingsPane">
+              <div class="directory-toolbar"><div><small>ESTRUTURA DA BIBLIOTECA</small><h2>Diretórios do Catálogo</h2><p>Crie pastas e subpastas, escolha ícones e controle a catalogação automática.</p></div><div class="directory-toolbar-actions"><button id="directoryNew" class="catalog-action primary" type="button"><span>＋</span> Novo</button><button id="directoryDelete" class="catalog-action danger" type="button" disabled><span>⌫</span> Excluir</button><button id="directoryRefresh" class="catalog-action" type="button"><span>↻</span> Atualizar</button></div></div>
+              <div id="directoryTableWrap" class="directory-table-wrap"><p class="empty">Carregando diretórios...</p></div>
+              <p class="directory-footnote">A organização visual do Catálogo é independente dos arquivos físicos. Excluir um cadastro não apaga nem move os áudios armazenados.</p>
+            </section>
+            <section id="generalSettingsPane" hidden><div class="settings-empty"><strong>Configurações gerais</strong><span>Esta área poderá receber outras preferências em uma próxima etapa.</span></div></section>
+          </article>
+        </section>
       </main>
     </div>
       <div id="importModal" class="modal" hidden>
@@ -113,11 +124,36 @@
         <label class="category-label">Pasta / categoria<select id="importCategory">
           <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
         </select></label>
-        <label id="importSubcategoryField" class="category-label" hidden>Voz / subcategoria<input id="importSubcategory" maxlength="80" placeholder="Ex.: Voz Masculina"><small>Identifica a voz dos áudios de Hora Certa ou Temperatura.</small></label>
+        <label id="importSubcategoryField" class="category-label" hidden>Subpasta<input id="importSubcategory" maxlength="80" placeholder="Ex.: Voz Masculina"><small>Destino opcional dentro da pasta selecionada.</small></label>
         <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong id="dropTitle">Escolher arquivos de áudio</strong><small id="dropHint">MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small><em id="dropNote">Os originais serão preservados</em></label>
         <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
         <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Importar selecionados</button></div>
       </form>
+    </section>
+  </div>
+  <div id="directoryModal" class="modal" hidden>
+    <section class="modal-card directory-modal-card panel" role="dialog" aria-modal="true" aria-labelledby="directoryModalTitle">
+      <div class="modal-head"><div><small>ESTRUTURA DO CATÁLOGO</small><h2 id="directoryModalTitle">Nova pasta</h2><p>Defina a identificação e o diretório físico sem alterar arquivos existentes.</p></div><button id="directoryModalClose" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <form id="directoryForm">
+        <input id="directoryId" type="hidden">
+        <div class="directory-form-grid">
+          <label>Nome<input id="directoryName" maxlength="80" required placeholder="Ex.: Músicas"></label>
+          <label>Tipo<select id="directoryType"><option value="folder">Pasta</option><option value="subfolder">Subpasta</option></select></label>
+          <label id="directoryParentField" hidden>Pasta principal<select id="directoryParent"></select></label>
+          <label>Ícone<select id="directoryIcon"><option value="folder">Pasta</option><option value="music">Música</option><option value="commercial">Comercial</option><option value="megaphone">Megafone</option><option value="link">Intercon</option><option value="wave">Trilha / onda</option><option value="headphones">Fone</option><option value="microphone">Microfone</option><option value="voice">Voice Track</option><option value="clock">Relógio</option><option value="thermometer">Temperatura</option><option value="news">Jornalismo</option><option value="star">Favorito</option><option value="archive">Arquivo</option></select></label>
+          <label class="directory-path-field">Caminho do diretório<input id="directoryPath" placeholder="Automático dentro da pasta de entrada"><small>Deixe em branco para criar o caminho padrão a partir do nome.</small></label>
+        </div>
+        <div class="directory-switches"><label><input id="directoryAutoCatalog" type="checkbox" checked><span><strong>Autocatalogar</strong><small>Monitorar esta pasta e importar novos áudios automaticamente.</small></span></label><label><input id="directoryActive" type="checkbox" checked><span><strong>Ativo</strong><small>Disponibilizar esta pasta na estrutura do Catálogo.</small></span></label></div>
+        <p id="directoryError" class="manage-error" role="alert"></p>
+        <div class="modal-actions"><button id="directoryCancel" class="secondary" type="button">Cancelar</button><button id="directorySave" class="primary" type="submit">Salvar diretório</button></div>
+      </form>
+    </section>
+  </div>
+  <div id="directoryPathModal" class="modal" hidden>
+    <section class="modal-card directory-path-card panel" role="dialog" aria-modal="true" aria-labelledby="directoryPathTitle">
+      <div class="modal-head"><div><small>CAMINHO FÍSICO NO SERVIDOR</small><h2 id="directoryPathTitle">Diretório</h2><p id="directoryPathStatus"></p></div><button id="directoryPathClose" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <code id="directoryPathValue" class="directory-path-value"></code>
+      <div class="modal-actions"><button id="directoryPathCopy" class="primary" type="button">Copiar caminho</button><button id="directoryPathDone" class="secondary" type="button">Fechar</button></div>
     </section>
   </div>
   <div id="manageModal" class="modal" hidden>
@@ -142,5 +178,6 @@
   </div>
   <audio id="previewPlayer" preload="none"></audio>
   <script src="/app.js"></script>
+  <script src="/directories.js"></script>
 </body>
 </html>

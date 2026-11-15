@@ -72,6 +72,7 @@ function categoryIcon(category){
 const defaultLibraryFolders=['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros'];
 let selectedFolderCategory='';
 let selectedFolderSubcategory='';
+let catalogDirectories=[];
 
 function formatAddedDate(item){
   const value=item.createdAt||item.addedAt||item.importedAt||item.receivedAt||item.created_at||item.updatedAt;
@@ -80,8 +81,15 @@ function formatAddedDate(item){
   return Number.isNaN(date.getTime())?'—':date.toLocaleDateString('pt-BR');
 }
 
+function directoryIconTemplate(directory){
+  const glyphs={folder:'▰',music:'♫',commercial:'$',megaphone:'◖',link:'↔',wave:'≋',headphones:'♬',microphone:'♩',voice:'🎙',clock:'◷',thermometer:'♨',news:'▤',star:'★',archive:'▣'};
+  return `<span class="catalog-directory-icon icon-${escapeText(directory.icon||'folder')}">${glyphs[directory.icon]||'▰'}</span>`;
+}
 function folderTreeTemplate(){
-  const categories=[...new Set([...defaultLibraryFolders,...currentItems.map(item=>item.category||'Outros')])];
+  const configured=catalogDirectories.filter(item=>item.type==='folder'&&item.active);
+  const configuredAll=catalogDirectories.filter(item=>item.type==='folder');
+  const unmanaged=currentItems.map(item=>item.category||'Outros').filter(category=>!configuredAll.some(item=>item.name===category));
+  const categories=[...new Set([...configured.map(item=>item.name),...unmanaged])];
   if(!selectedFolderCategory) selectedFolderCategory=categories[0]||'Músicas';
   if(!categories.includes(selectedFolderCategory)){
     selectedFolderCategory=categories[0]||'Músicas';
@@ -89,16 +97,18 @@ function folderTreeTemplate(){
   }
   return categories.map(category=>{
     const selected=selectedFolderCategory===category&&!selectedFolderSubcategory;
-    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
+    const directory=configured.find(item=>item.name===category);
+    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${directory?directoryIconTemplate(directory):categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
   }).join('');
 }
 
 function librarySubfoldersTemplate(){
   if(currentLibraryView==='trash') return '';
-  const subcategories=[...new Set(currentItems
-    .filter(item=>(item.category||'Outros')===selectedFolderCategory&&item.subcategory)
-    .map(item=>item.subcategory))]
-    .sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const parent=catalogDirectories.find(item=>item.type==='folder'&&item.name===selectedFolderCategory);
+  const configured=catalogDirectories.filter(item=>item.type==='subfolder'&&item.parentId===parent?.id&&item.active).map(item=>item.name);
+  const disabledSubfolders=catalogDirectories.filter(item=>item.type==='subfolder'&&item.parentId===parent?.id&&!item.active).map(item=>item.name);
+  const existing=currentItems.filter(item=>(item.category||'Outros')===selectedFolderCategory&&item.subcategory&&!disabledSubfolders.includes(item.subcategory)).map(item=>item.subcategory);
+  const subcategories=[...new Set([...configured,...existing])].sort((a,b)=>a.localeCompare(b,'pt-BR'));
   if(!subcategories.length) return '';
   return `<div class="library-subfolders" aria-label="Subpastas de ${escapeText(selectedFolderCategory)}">
     <button class="subcategory-chip ${selectedFolderSubcategory?'':'active'}" type="button" data-library-subcategory="">Todas</button>
@@ -238,7 +248,7 @@ function sendFile(file,category,subcategory,onProgress,archive=false){
     request.setRequestHeader('content-type','application/octet-stream');
     request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
     request.setRequestHeader('x-category-b64',encodeMetadata(category));
-    if(['Hora Certa','Temperatura'].includes(category)&&subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
+    if(subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
     request.upload.onprogress=event=>{ if(event.lengthComputable) onProgress(Math.round((event.loaded/event.total)*100)); };
     request.onload=()=>{
       let result={};
@@ -287,14 +297,18 @@ async function refresh(){
   button.disabled=true;
   try{
     const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
-    const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
+    const [statusResponse,itemsResponse,directoryResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint),fetch('/api/catalog-directories')]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
       return;
     }
-    if(!statusResponse.ok || !itemsResponse.ok) throw new Error('Servidor indisponível');
+    if(!statusResponse.ok || !itemsResponse.ok || !directoryResponse.ok) throw new Error('Servidor indisponível');
     const status=await statusResponse.json();
     const {items}=await itemsResponse.json();
+    const directoryData=await directoryResponse.json();
+    catalogDirectories=directoryData.items||[];
+    if(typeof renderDirectorySettings==='function'&&!$('#settingsView').hidden) renderDirectorySettings();
+    if(typeof refreshDirectorySelects==='function') refreshDirectorySelects();
     $('#total').textContent=status.counts.total;
     $('#processing').textContent=status.counts.processing+status.counts.received;
     $('#ready').textContent=status.counts.ready;
@@ -391,7 +405,8 @@ function openManage(item,mode){
   $('#manageDescription').textContent=mode==='move'?'Corrija a classificação sem reenviar ou reprocessar o áudio.':'Atualize os dados exibidos na biblioteca e no Studio Air.';
   $('#manageCategory').value=item.category;
   $('#manageSubcategory').value=item.subcategory||'';
-  $('#manageSubcategoryField').hidden=item.category!=='Hora Certa';
+  const hasSubfolders=catalogDirectories.some(directory=>directory.type==='subfolder'&&directory.active&&catalogDirectories.find(parent=>parent.id===directory.parentId)?.name===item.category);
+  $('#manageSubcategoryField').hidden=!hasSubfolders&&!['Hora Certa','Temperatura'].includes(item.category);
   $('#manageTitleInput').value=item.title||item.fileName||'';
   $('#manageArtist').value=item.artist||'';
   $('#manageAlbum').value=item.album||'';
@@ -480,7 +495,7 @@ $('#trashTab').addEventListener('click',async()=>{
 $('#closeManage').addEventListener('click',closeManage);
 $('#cancelManage').addEventListener('click',closeManage);
 $('#manageModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeManage(); });
-$('#manageCategory').addEventListener('change',()=>{$('#manageSubcategoryField').hidden=!['Hora Certa','Temperatura'].includes($('#manageCategory').value);if(!['Hora Certa','Temperatura'].includes($('#manageCategory').value))$('#manageSubcategory').value='';});
+$('#manageCategory').addEventListener('change',()=>{const hasChildren=catalogDirectories.some(item=>item.type==='subfolder'&&item.active&&catalogDirectories.find(parent=>parent.id===item.parentId)?.name===$('#manageCategory').value);$('#manageSubcategoryField').hidden=!hasChildren&&!['Hora Certa','Temperatura'].includes($('#manageCategory').value);if($('#manageSubcategoryField').hidden)$('#manageSubcategory').value='';});
 $('#manageForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const button=$('#saveManage');
@@ -535,7 +550,7 @@ $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
 document.querySelectorAll('.source-tab').forEach(button=>button.addEventListener('click',()=>selectImportMode(button.dataset.mode)));
 $('#importFiles').addEventListener('change',()=>renderUploadQueue());
-$('#importCategory').addEventListener('change',()=>{$('#importSubcategoryField').hidden=!['Hora Certa','Temperatura'].includes($('#importCategory').value);if(!['Hora Certa','Temperatura'].includes($('#importCategory').value))$('#importSubcategory').value='';});
+$('#importCategory').addEventListener('change',()=>{const hasChildren=catalogDirectories.some(item=>item.type==='subfolder'&&item.active&&catalogDirectories.find(parent=>parent.id===item.parentId)?.name===$('#importCategory').value);$('#importSubcategoryField').hidden=!hasChildren&&!['Hora Certa','Temperatura'].includes($('#importCategory').value);if($('#importSubcategoryField').hidden)$('#importSubcategory').value='';});
 $('#importForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const files=selectedFiles();

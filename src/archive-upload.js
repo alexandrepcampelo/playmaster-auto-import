@@ -43,8 +43,10 @@ function openEntry(zip,entry){
   return new Promise((resolve,reject)=>zip.openReadStream(entry,(error,stream)=>error?reject(error):resolve(stream)));
 }
 
-async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes}){
-  const categoryDir=subcategory?join(inboxDir,category,subcategory):join(inboxDir,category);
+async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes,directoryStore}){
+  const folder=directoryStore?.list().find(item=>item.type==='folder'&&item.name===category&&item.active);
+  const child=folder&&subcategory?directoryStore?.list().find(item=>item.type==='subfolder'&&item.parentId===folder.id&&item.name===subcategory&&item.active):null;
+  const categoryDir=child?.path||(subcategory?join(folder?.path||join(inboxDir,category),subcategory):folder?.path||join(inboxDir,category));
   await mkdir(categoryDir,{recursive:true});
   const zip=await openZip(filePath);
   const extracted=[];
@@ -102,10 +104,10 @@ async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxEx
   }
 }
 
-export async function receiveArchive(req,{inboxDir,tempDir,maxBytes,maxFiles,maxExtractedBytes}){
+export async function receiveArchive(req,{inboxDir,tempDir,maxBytes,maxFiles,maxExtractedBytes,directoryStore}){
   const fileName=safeArchiveName(decodeMetadata(req.headers['x-file-name-b64']));
   const category=safeCategory(decodeMetadata(req.headers['x-category-b64']));
-  const subcategory=['Hora Certa','Temperatura'].includes(category)?safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64'])):'';
+  const subcategory=safeSubcategory(decodeMetadata(req.headers['x-subcategory-b64']));
   const declaredSize=Number(req.headers['content-length']);
   if(Number.isFinite(declaredSize) && declaredSize>maxBytes) throw Object.assign(new Error('O ZIP excede o limite permitido.'),{statusCode:413});
   await mkdir(tempDir,{recursive:true});
@@ -119,7 +121,7 @@ export async function receiveArchive(req,{inboxDir,tempDir,maxBytes,maxFiles,max
   try{
     await pipeline(req,limiter,createWriteStream(temporary,{flags:'wx'}));
     if(size===0) throw Object.assign(new Error('O arquivo ZIP está vazio.'),{statusCode:400});
-    const files=await extractZip(temporary,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes});
+    const files=await extractZip(temporary,{inboxDir,category,subcategory,maxFiles,maxExtractedBytes,directoryStore});
     return {fileName,category,subcategory,size,files};
   }finally{
     await rm(temporary,{force:true});

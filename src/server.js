@@ -2,11 +2,12 @@ import http from 'node:http';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { createReadStream } from 'node:fs';
-import { readFile,rm,stat } from 'node:fs/promises';
+import { mkdir,readFile,rm,stat } from 'node:fs/promises';
 import { extname,join,normalize,resolve,sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { ImportStore } from './store.js';
+import { CatalogDirectoryStore } from './catalog-directories.js';
 import { AutoImporter } from './importer.js';
 import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from './auth.js';
 import { receiveUpload } from './upload.js';
@@ -17,13 +18,16 @@ import { createWeatherService } from './weather.js';
 const publicDir=join(fileURLToPath(new URL('.',import.meta.url)),'..','public');
 const store=new ImportStore(config);
 await store.init();
-const importer=new AutoImporter({...config,store});
+const directoryStore=new CatalogDirectoryStore(config);
+await directoryStore.init();
+const importer=new AutoImporter({...config,store,directoryStore});
 await importer.init();
 const loginLimiter=new LoginLimiter();
 const weatherService=createWeatherService({apiKey:config.weatherApiKey,location:config.weatherLocation});
 
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
-const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Voice Track','Hora Certa','Temperatura','Outros']);
+const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Voice Track','Hora Certa','Temperatura','Jornalismo','Outros']);
+const directoryIcons=new Set(['folder','music','commercial','megaphone','link','wave','headphones','microphone','voice','clock','thermometer','news','star','archive']);
 
 
 function isPublicIp(address){
@@ -130,6 +134,27 @@ function requirePanelSession(req,res){
   return false;
 }
 
+function validateCatalogDirectory(input){
+  const name=String(input.name||'').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim().slice(0,80);
+  const type=input.type==='subfolder'?'subfolder':'folder';
+  const parentId=type==='subfolder'?String(input.parentId||''):'';
+  const parent=parentId?directoryStore.find(parentId):null;
+  if(!name) throw Object.assign(new Error('Informe o nome da pasta.'),{statusCode:400});
+  if(type==='subfolder'&&(!parent||parent.type!=='folder'||!parent.active)) throw Object.assign(new Error('Selecione uma pasta principal ativa.'),{statusCode:400});
+  const icon=directoryIcons.has(String(input.icon||''))?String(input.icon):'folder';
+  const base=resolve(config.inboxDir);
+  const raw=String(input.path||'').trim();
+  const target=resolve(raw?(raw.startsWith('/')?raw:join(base,raw)):(parent?join(parent.path,name):join(base,name)));
+  const relativePath=relative(base,target);
+  if(!relativePath||relativePath==='.'||relativePath.startsWith('..')||relativePath.includes(sep+'..')) throw Object.assign(new Error('O caminho precisa estar dentro do diretório de entrada do AutoImport.'),{statusCode:400});
+  if(parent&&(target===resolve(parent.path)||!target.startsWith(resolve(parent.path)+sep))) throw Object.assign(new Error('O caminho da subpasta precisa ficar dentro da pasta principal.'),{statusCode:400});
+  const samePath=directoryStore.list().find(item=>item.id!==input.id&&resolve(item.path)===target);
+  if(samePath) throw Object.assign(new Error('Este caminho já está vinculado a outro diretório do Catálogo.'),{statusCode:409});
+  const duplicate=directoryStore.list().find(item=>item.id!==input.id&&item.type===type&&item.parentId===parentId&&item.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR'));
+  if(duplicate) throw Object.assign(new Error('Já existe uma pasta com esse nome neste nível.'),{statusCode:409});
+  return {name,type,parentId,icon,path:target,autoCatalog:Boolean(input.autoCatalog),active:Boolean(input.active)};
+}
+
 async function removeStoredFile(filePath,baseDir){
   if(!filePath) return;
   const target=resolve(filePath);
@@ -202,6 +227,52 @@ const server=http.createServer(async(req,res)=>{
       try{return json(res,200,await weatherService.get());}
       catch(error){return json(res,error.statusCode||502,{error:error.message||'Dados meteorológicos indisponíveis.'});}
     }
+    if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir});
+    }
+    if(url.pathname==='/api/catalog-directories' && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const input=await body(req);
+      const directory=validateCatalogDirectory(input);
+      await mkdir(directory.path,{recursive:true});
+      const item=await directoryStore.create(directory);
+      return json(res,201,{ok:true,item});
+    }
+    const catalogDirectoryMatch=url.pathname.match(/^\/api\/catalog-directories\/([^/]+)$/);
+    const catalogDirectoryOpenMatch=url.pathname.match(/^\/api\/catalog-directories\/([^/]+)\/open$/);
+    if(catalogDirectoryOpenMatch && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      const item=directoryStore.find(decodeURIComponent(catalogDirectoryOpenMatch[1]));
+      if(!item) return json(res,404,{error:'Diretório não encontrado.'});
+      let exists=false;
+      try{exists=(await stat(item.path)).isDirectory();}catch{}
+      return json(res,200,{ok:true,path:item.path,exists,name:item.name});
+    }
+    if(catalogDirectoryMatch && req.method==='PUT'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(catalogDirectoryMatch[1]);
+      const current=directoryStore.find(id);
+      if(!current) return json(res,404,{error:'Diretório não encontrado.'});
+      const input=await body(req);
+      const directory=validateCatalogDirectory({...input,id});
+      if(current.type==='folder'&&directory.path!==current.path&&directoryStore.list().some(item=>item.parentId===id)) return json(res,409,{error:'Esta pasta possui subpastas. Altere primeiro os caminhos das subpastas.'});
+      await mkdir(directory.path,{recursive:true});
+      const item=await directoryStore.update(id,directory);
+      if(item.type==='folder'&&!item.active){
+        for(const child of directoryStore.list().filter(row=>row.parentId===id)) await directoryStore.update(child.id,{active:false,autoCatalog:false});
+      }
+      return json(res,200,{ok:true,item});
+    }
+    if(catalogDirectoryMatch && req.method==='DELETE'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(catalogDirectoryMatch[1]);
+      const current=directoryStore.find(id);
+      if(!current) return json(res,404,{error:'Diretório não encontrado.'});
+      if(directoryStore.list().some(item=>item.parentId===id)) return json(res,409,{error:'Exclua ou mova as subpastas antes de excluir esta pasta.'});
+      const item=await directoryStore.remove(id);
+      return json(res,200,{ok:true,item,filesPreserved:true});
+    }
     if(url.pathname==='/api/status' && !requireReadAccess(req,res)) return;
     if(url.pathname==='/api/status') return json(res,200,{
       ok:true,counts:store.counts(),inboxDir:config.inboxDir,originalsDir:config.originalsDir,processedDir:config.processedDir,
@@ -223,11 +294,11 @@ const server=http.createServer(async(req,res)=>{
       const patch={};
       if(Object.hasOwn(input,'category')){
         const category=String(input.category||'').trim();
-        if(!audioCategories.has(category)) return json(res,400,{error:'Pasta de áudio inválida.'});
+        if(!audioCategories.has(category)&&!directoryStore.list().some(item=>item.type==='folder'&&item.name===category)) return json(res,400,{error:'Pasta de áudio inválida.'});
         patch.category=category;
       }
-      if(Object.hasOwn(input,'subcategory')) patch.subcategory=['Hora Certa','Temperatura'].includes(patch.category)?String(input.subcategory||'').normalize('NFC').replace(/[\\/<>:"|?*\u0000-\u001f]/g,'-').trim().slice(0,80):'';
-      else if(patch.category && !['Hora Certa','Temperatura'].includes(patch.category)) patch.subcategory='';
+      if(Object.hasOwn(input,'subcategory')) patch.subcategory=String(input.subcategory||'').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim().slice(0,80);
+      else if(patch.category && !directoryStore.list().some(item=>item.type==='subfolder'&&directoryStore.find(item.parentId)?.name===patch.category)) patch.subcategory='';
       for(const [key,max] of [['title',200],['artist',200],['album',200],['year',12]]){
         if(Object.hasOwn(input,key)) patch[key]=String(input[key]??'').trim().slice(0,max);
       }
@@ -305,7 +376,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/uploads/archive' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
-      const archive=await receiveArchive(req,config);
+      const archive=await receiveArchive(req,{...config,directoryStore});
       const results=await Promise.all(archive.files.map(filePath=>importer.ingest(filePath,{background:true})));
       await Promise.all(results.map((result,index)=>result?.duplicate?rm(archive.files[index],{force:true}):null));
       const items=results.filter(Boolean).map(result=>result.item).filter(Boolean);
@@ -335,7 +406,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/uploads' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
-      const upload=await receiveUpload(req,{inboxDir:config.inboxDir,maxBytes:config.maxUploadBytes});
+      const upload=await receiveUpload(req,{inboxDir:config.inboxDir,maxBytes:config.maxUploadBytes,directoryStore});
       const result=await importer.ingest(upload.filePath,{background:true});
       if(result?.duplicate) await rm(upload.filePath,{force:true});
       return json(res,result?.duplicate?200:202,{
