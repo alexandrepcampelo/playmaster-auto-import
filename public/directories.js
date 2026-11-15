@@ -51,7 +51,7 @@ function renderDirectorySettings(){
    <td><button class="directory-edit-button" type="button" data-edit-directory="${directoryEscape(item.id)}" title="Editar diretório" aria-label="Editar ${directoryEscape(item.name)}">✎</button></td>
   </tr>`;
  }).join('');
- wrap.innerHTML=`<table class="directory-table"><thead><tr><th>Nome da pasta / subpasta</th><th>Tipo (pasta principal)</th><th>Caminho do diretório</th><th>Autocatalogar</th><th>Ativo</th><th>Ações</th></tr></thead><tbody>${rows}</tbody></table>`;
+ wrap.innerHTML=`<table class="directory-table"><thead><tr><th>Pasta / subpasta</th><th>Pasta principal</th><th>Caminho do diretório</th><th>Autocatalogar</th><th>Ativo</th><th>Ações</th></tr></thead><tbody>${rows}</tbody></table>`;
  $dir('directoryDelete').disabled=selectedDirectoryIds.size===0;
 }
 function refreshDirectorySelects(){
@@ -82,25 +82,24 @@ function directoryBaseFor(item){
 }
 function updateDirectoryTypeFields(){
  const subfolder=$dir('directoryType').value==='subfolder';
- const ios=isIOSFilePicker();
+ const parent=catalogDirectories.find(row=>row.id===$dir('directoryParent').value);
+ const logicalRoot='iCloud Drive/Playmaster/biblioteca';
  $dir('directoryParentField').hidden=!subfolder;
- $dir('directoryBrowse').disabled=subfolder;
- $dir('directoryPath').value=subfolder?(catalogDirectories.find(row=>row.id===$dir('directoryParent').value)?.path||''):(directoryEditingItem?directoryBaseFor(directoryEditingItem):directoryLibraryRoot);
- $dir('directoryPathLabelTitle').textContent=ios?'Pasta base de armazenamento no servidor':'Pasta base da Biblioteca';
- $dir('directoryBrowse').setAttribute('aria-label',ios?'Selecionar pasta do iCloud para importar':'Selecionar caminho no servidor');
- $dir('directoryBrowse').title=ios?'Selecionar pasta do iCloud para importar áudios':'Selecionar caminho no servidor';
- $dir('directoryPathHint').textContent=subfolder?'O caminho será criado dentro da pasta principal selecionada.':'A nova pasta principal será criada dentro deste local no servidor. As subpastas usarão automaticamente o caminho da pasta principal selecionada.';
- if(ios&&!subfolder){
-  $dir('directoryPath').value=directoryLibraryRoot;
-  $dir('directoryPathHint').textContent='Este é o armazenamento temporário do AutoImport no servidor ('+directoryLibraryRoot+'). No iPad, o botão ... apenas seleciona uma pasta do iCloud para importar áudios; ele não altera nem vincula o caminho físico da Biblioteca. O vínculo direto com pastas do computador será disponibilizado na integração Windows.';
- }
+ $dir('directoryNameLabel').textContent=subfolder?'Nome da subpasta':'Nome da pasta';
+ $dir('directoryPathLabelTitle').textContent='Destino na Biblioteca';
+ $dir('directoryBrowse').hidden=true;
+ $dir('directoryBrowse').disabled=true;
+ const logicalParent=subfolder?(parent?.destinationPath||logicalRoot+'/'+(parent?.name||'')):logicalRoot;
+ const editingSame=directoryEditingItem&&directoryEditingItem.type===(subfolder?'subfolder':'folder')&&$dir('directoryName').value.trim()===directoryEditingItem.name;
+ $dir('directoryPath').value=editingSame?directoryEditingItem.destinationPath:logicalParent;
+ $dir('directoryPathHint').textContent=(subfolder?'A nova subpasta será criada dentro da pasta principal selecionada.':'A nova pasta será criada diretamente dentro da biblioteca.')+' A criação física no iCloud Drive depende da integração local autorizada do Windows; este cadastro registra o destino sem mover ou apagar áudios.';
 }
 function openDirectoryEditor(item=null){
  directoryEditingItem=item;
  $dir('directoryForm').reset();
  $dir('directoryId').value=item?.id||'';
  $dir('directoryName').value=item?.name||'';
- $dir('directoryType').value=item?.type||(isIOSFilePicker()?'folder':'subfolder');
+ $dir('directoryType').value=item?.type||'folder';
  $dir('directoryIcon').value=item?.icon||'folder';
  $dir('directoryCustomIcon').value=item?.customIcon||'';
  $dir('directoryAutoCatalog').checked=item?Boolean(item.autoCatalog):true;
@@ -108,8 +107,8 @@ function openDirectoryEditor(item=null){
  refreshDirectorySelects();
  if(item?.parentId)$dir('directoryParent').value=item.parentId;
  updateDirectoryTypeFields();
- $dir('directoryModalTitle').textContent=item?'Editar diretório':'Novo diretório';
- $dir('directorySave').textContent=item?'Salvar alterações':'Criar diretório';
+ $dir('directoryModalTitle').textContent=item?'Editar pasta':($dir('directoryType').value==='subfolder'?'Nova subpasta':'Nova pasta');
+ $dir('directorySave').textContent=item?'Salvar alterações':($dir('directoryType').value==='subfolder'?'Criar subpasta':'Criar pasta');
  $dir('directoryError').textContent='';
  $dir('directoryModal').hidden=false;
  document.body.classList.add('modal-open');
@@ -130,7 +129,7 @@ async function saveDirectory(event){
   parentId:type==='subfolder'?$dir('directoryParent').value:'',
   icon:$dir('directoryIcon').value,
   customIcon:$dir('directoryCustomIcon').value.trim(),
-  basePath:$dir('directoryPath').value.trim(),
+  basePath:type==='subfolder'?(catalogDirectories.find(row=>row.id===$dir('directoryParent').value)?.path||directoryLibraryRoot):(directoryEditingItem?directoryBaseFor(directoryEditingItem):directoryLibraryRoot),
   autoCatalog:$dir('directoryAutoCatalog').checked,
   active:$dir('directoryActive').checked
  };
@@ -196,9 +195,10 @@ $dir('directoryDelete').addEventListener('click',async()=>{
 });
 $dir('directoryRefresh').addEventListener('click',()=>loadDirectorySettings().catch(error=>alert(error.message)));
 $dir('directoryForm').addEventListener('submit',saveDirectory);
-$dir('directoryType').addEventListener('change',updateDirectoryTypeFields);
+$dir('directoryType').addEventListener('change',()=>{updateDirectoryTypeFields();$dir('directoryModalTitle').textContent=$dir('directoryType').value==='subfolder'?'Nova subpasta':'Nova pasta';$dir('directorySave').textContent=$dir('directoryType').value==='subfolder'?'Criar subpasta':'Criar pasta';});
 $dir('directoryParent').addEventListener('change',updateDirectoryTypeFields);
-$dir('directoryBrowse').addEventListener('click',()=>{if(isIOSFilePicker()&&$dir('directoryType').value==='folder')openICloudFolderPicker();else openDirectoryBrowser('folders');});
+$dir('directoryName').addEventListener('input',updateDirectoryTypeFields);
+$dir('directoryBrowse').addEventListener('click',()=>{});
 $dir('directoryIconBrowse').addEventListener('click',()=>openDirectoryBrowser('icons'));
 $dir('directoryBrowserList').addEventListener('click',event=>{const icon=event.target.closest('[data-select-icon]');if(!icon)return;$dir('directoryCustomIcon').value=icon.dataset.selectIcon;closeDirectoryBrowser();});
 $dir('directoryModalClose').addEventListener('click',closeDirectoryEditor);
