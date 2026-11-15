@@ -343,6 +343,30 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .catalog-category-icon.category-jornalismo{color:#11bdc7}
 .catalog-category-icon.category-outros{color:#a8adb5}
 .folder-select{gap:9px}
+/* Evita que as cores de fundo dos badges de processamento formem quadrados atrás dos ícones do catálogo. */
+.folder-select .catalog-category-icon,
+.type-cell .catalog-category-icon,
+.trash-row .catalog-category-icon,
+.catalog-category-icon{
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+.catalog-category-icon.category-comerciais,
+.catalog-category-icon.category-vinhetas,
+.catalog-category-icon.category-intercons,
+.catalog-category-icon.category-trilhas,
+.catalog-category-icon.category-chamadas,
+.catalog-category-icon.category-locucao,
+.catalog-category-icon.category-musicas,
+.catalog-category-icon.category-voice-track,
+.catalog-category-icon.category-hora-certa,
+.catalog-category-icon.category-temperatura,
+.catalog-category-icon.category-jornalismo,
+.catalog-category-icon.category-outros{
+  background:transparent!important;
+}
 .folder-select .catalog-category-icon{width:25px;height:25px;flex-basis:25px}
 .folder-select .catalog-category-icon svg{width:24px;height:24px}
 .type-cell{display:flex;align-items:center;gap:7px}
