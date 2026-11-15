@@ -24,6 +24,7 @@ const importer=new AutoImporter({...config,store,directoryStore});
 await importer.init();
 const loginLimiter=new LoginLimiter();
 const weatherService=createWeatherService({apiKey:config.weatherApiKey,location:config.weatherLocation});
+let localAgentStatus={connected:false,status:'disconnected',libraryRoot:'',created:0,existing:0,error:'',lastSeenAt:''};
 
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 const audioCategories=new Set(['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Voice Track','Hora Certa','Temperatura','Jornalismo','Outros']);
@@ -271,6 +272,32 @@ const server=http.createServer(async(req,res)=>{
       if(!actual||(await stat(actual)).isFile()!==true) return json(res,404,{error:'Ícone não encontrado.'});
       res.writeHead(200,{'content-type':types[extension],'cache-control':'private, max-age=300','x-content-type-options':'nosniff'});
       return createReadStream(actual).pipe(res);
+    }
+    if(url.pathname==='/api/agent/library-directories' && req.method==='GET'){
+      if(!hasApiToken(req)) return json(res,401,{error:'Token de integração necessário.'});
+      const prefix='iCloud Drive/Playmaster/biblioteca/';
+      const items=directoryStore.list().filter(item=>item.active).map(item=>{
+        const destination=String(item.destinationPath||'');
+        if(!destination.startsWith(prefix)) return null;
+        const relativePath=destination.slice(prefix.length);
+        const segments=relativePath.split('/');
+        if(!relativePath||segments.some(part=>!part||part==='.'||part==='..'||/[\\\\<>:"|?*\\x00-\\x1f]/.test(part))) return null;
+        return {id:item.id,name:item.name,type:item.type,relativePath};
+      }).filter(Boolean);
+      return json(res,200,{ok:true,libraryBasePath:'iCloud Drive/Playmaster/biblioteca',items,generatedAt:new Date().toISOString()});
+    }
+    if(url.pathname==='/api/agent/library-sync' && req.method==='POST'){
+      if(!hasApiToken(req)) return json(res,401,{error:'Token de integração necessário.'});
+      const input=await body(req);
+      const status=['connected','syncing','error'].includes(input.status)?input.status:'connected';
+      localAgentStatus={connected:true,status,libraryRoot:String(input.libraryRoot||'').slice(0,500),created:Number(input.created)||0,existing:Number(input.existing)||0,error:String(input.error||'').slice(0,500),lastSeenAt:new Date().toISOString()};
+      return json(res,200,{ok:true});
+    }
+    if(url.pathname==='/api/agent/status' && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      const lastSeen=localAgentStatus.lastSeenAt?Date.parse(localAgentStatus.lastSeenAt):0;
+      const online=Boolean(lastSeen&&Date.now()-lastSeen<30000);
+      return json(res,200,{...localAgentStatus,connected:online,status:online?localAgentStatus.status:'disconnected'});
     }
     if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
