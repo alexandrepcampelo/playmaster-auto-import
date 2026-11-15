@@ -258,8 +258,8 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .folder-glyph{color:#e9b94f;font-size:13px}
 .folder-child{margin-left:29px;max-width:calc(100% - 29px)}
 .library-table-wrap{display:block;max-height:calc(100vh - 340px);min-height:240px;overflow:auto;padding:0 0 5px}
-.library-table{min-width:850px;width:100%;font-size:10px}
-.library-table-head,.library-row{display:grid;grid-template-columns:minmax(86px,1.05fr) minmax(145px,1.7fr) minmax(105px,1.25fr) 62px minmax(95px,1fr) 48px 48px 48px;align-items:center;column-gap:7px}
+.library-table{min-width:720px;width:100%;font-size:10px}
+.library-table-head,.library-row{display:grid;grid-template-columns:minmax(145px,1.7fr) minmax(105px,1.25fr) 62px minmax(95px,1fr) 48px 48px 48px;align-items:center;column-gap:7px}
 .library-table-head{position:sticky;top:0;z-index:2;min-height:38px;padding:0 9px;border-bottom:1px solid #29445a;background:#0b1b2d;color:#66c7eb;font-size:9px;font-weight:800;white-space:nowrap}
 .library-row{min-height:43px;padding:4px 9px;border-bottom:1px solid rgba(78,126,157,.18);color:#dceaf3}
 .library-row:hover{background:#10263a}
@@ -323,7 +323,7 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 #appView.sidebar-collapsed .nav-item>span{width:100%;height:22px;flex:0 0 22px}
 #appView.sidebar-collapsed .nav-item>span .sidebar-icon{width:19px;height:19px}
 
-.catalog-toolbar{display:flex;align-items:stretch;flex-direction:column;gap:12px;padding:14px 18px}.catalog-heading{flex:0 0 auto}.catalog-heading h1{margin:4px 0 0;font-size:20px}.catalog-toolbar-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;width:100%}.catalog-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #29465e;border-radius:7px;background:#0c2034;color:#b9d0df;font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer}.catalog-action>span{font-size:15px;line-height:1}.catalog-action:hover:not(:disabled){border-color:#42c9ef;background:#12324a;color:#e9f7ff}.catalog-action.primary{background:linear-gradient(135deg,#087fbd,#12b7d6);border-color:#2bc9e8;color:#031623}.catalog-action.danger{border-color:rgba(229,92,116,.35);background:#321f2b;color:#ed9aaa}.catalog-action:disabled{opacity:.4;cursor:not-allowed}.catalog-search{flex:1 1 310px;width:auto;min-width:250px;max-width:none;height:36px;margin:0}.catalog-hidden-tabs{display:none}.library-count{color:#789bb2;font-size:9px}.library-table-head,.library-row{grid-template-columns:minmax(86px,1.05fr) minmax(145px,1.7fr) minmax(105px,1.25fr) 62px minmax(95px,1fr) 48px 48px 48px}@media(max-width:1050px){.catalog-toolbar{align-items:stretch;flex-direction:column}.catalog-toolbar-actions{justify-content:flex-start;width:100%}}@media(max-width:600px){.catalog-toolbar-actions{gap:6px}.catalog-action{padding:0 8px;font-size:9px}.catalog-search{flex-basis:100%;min-width:0;order:0}}
+.catalog-toolbar{display:flex;align-items:stretch;flex-direction:column;gap:12px;padding:14px 18px}.catalog-heading{flex:0 0 auto}.catalog-heading h1{margin:4px 0 0;font-size:20px}.catalog-toolbar-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;width:100%}.catalog-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #29465e;border-radius:7px;background:#0c2034;color:#b9d0df;font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer}.catalog-action>span{font-size:15px;line-height:1}.catalog-action:hover:not(:disabled){border-color:#42c9ef;background:#12324a;color:#e9f7ff}.catalog-action.primary{background:linear-gradient(135deg,#087fbd,#12b7d6);border-color:#2bc9e8;color:#031623}.catalog-action.danger{border-color:rgba(229,92,116,.35);background:#321f2b;color:#ed9aaa}.catalog-action:disabled{opacity:.4;cursor:not-allowed}.catalog-search{flex:1 1 310px;width:auto;min-width:250px;max-width:none;height:36px;margin:0}.catalog-hidden-tabs{display:none}.library-count{color:#789bb2;font-size:9px}.library-table-head,.library-row{grid-template-columns:minmax(145px,1.7fr) minmax(105px,1.25fr) 62px minmax(95px,1fr) 48px 48px 48px}@media(max-width:1050px){.catalog-toolbar{align-items:stretch;flex-direction:column}.catalog-toolbar-actions{justify-content:flex-start;width:100%}}@media(max-width:600px){.catalog-toolbar-actions{gap:6px}.catalog-action{padding:0 8px;font-size:9px}.catalog-search{flex-basis:100%;min-width:0;order:0}}
 
 
 /* Ícones do catálogo alinhados ao padrão visual do PlayMaster Air */
@@ -387,3 +387,18 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .subcategory-chip{min-height:29px;padding:0 12px;border:1px solid #29465e;border-radius:6px;background:#0c2034;color:#9fb8ca;font-size:10px;font-weight:650;white-space:nowrap;cursor:pointer}
 .subcategory-chip:hover{border-color:#42c9ef;color:#e9f7ff}
 .subcategory-chip.active{border-color:#27b9ed;background:#10344d;color:#e8f8ff}
+
+
+/* Rodapé de reprodução da Biblioteca Central */
+.library-audio-footer{position:sticky;bottom:0;z-index:3;margin:10px -2px -2px;padding:12px 10px 8px;border-top:1px solid #29465e;background:#0b1b2d;box-shadow:0 -8px 18px rgba(3,12,22,.22)}
+.audio-footer-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;color:#a9c2d3;font-size:10px}
+#audioNowPlaying{min-width:0;overflow:hidden;color:#dcecf6;text-overflow:ellipsis;white-space:nowrap}
+.audio-footer-time{flex:0 0 auto;color:#7fa1b7;font-variant-numeric:tabular-nums}
+.audio-progress{display:block;width:100%;height:8px;margin:0;appearance:none;-webkit-appearance:none;border:0;border-radius:10px;background:#203d54;cursor:pointer;accent-color:#20b9ed}
+.audio-progress::-webkit-slider-runnable-track{height:5px;border-radius:10px;background:linear-gradient(to right,#1db9ed 0%,#1db9ed 100%)}
+.audio-progress::-webkit-slider-thumb{width:13px;height:13px;margin-top:-4px;appearance:none;-webkit-appearance:none;border:2px solid #e6f8ff;border-radius:50%;background:#16b9ed;box-shadow:0 0 0 3px rgba(22,185,237,.15)}
+.audio-progress::-moz-range-track{height:5px;border-radius:10px;background:#203d54}
+.audio-progress::-moz-range-progress{height:5px;border-radius:10px;background:#1db9ed}
+.audio-progress::-moz-range-thumb{width:10px;height:10px;border:2px solid #e6f8ff;border-radius:50%;background:#16b9ed}
+.audio-progress:disabled{opacity:.4;cursor:default}
+@media(max-width:700px){.library-audio-footer{margin-top:8px;padding:10px 6px 7px}.audio-footer-meta{font-size:9px}}
