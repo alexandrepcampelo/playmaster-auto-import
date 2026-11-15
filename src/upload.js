@@ -51,9 +51,7 @@ export async function receiveUpload(req,{inboxDir,maxBytes,directoryStore}){
   const declaredSize=Number(req.headers['content-length']);
   if(Number.isFinite(declaredSize) && declaredSize>maxBytes) throw Object.assign(new Error('Arquivo excede o limite permitido.'),{statusCode:413});
 
-  const folder=directoryStore?.list().find(item=>item.type==='folder'&&item.name===category&&item.active);
-  const child=folder&&subcategory?directoryStore?.list().find(item=>item.type==='subfolder'&&item.parentId===folder.id&&item.name===subcategory&&item.active):null;
-  const categoryDir=child?.path||(subcategory?join(folder?.path||join(inboxDir,category),subcategory):folder?.path||join(inboxDir,category));
+  const categoryDir=subcategory?join(inboxDir,category,subcategory):join(inboxDir,category);
   await mkdir(categoryDir,{recursive:true});
   const filePath=await availablePath(categoryDir,fileName);
   const temporary=join(categoryDir,`.upload-${randomUUID()}.tmp`);
