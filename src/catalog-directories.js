@@ -2,42 +2,35 @@ import { mkdir,readFile,rename,writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-const defaults=[
-  ['Músicas','music'],['Comerciais','commercial'],['Vinhetas','megaphone'],
-  ['Intercons','link'],['Trilhas','wave'],['Chamadas','headphones'],
-  ['Locução','microphone'],['Voice Track','voice'],['Hora Certa','clock'],
-  ['Temperatura','thermometer'],['Jornalismo','news'],['Outros','folder']
-];
-
 export class CatalogDirectoryStore{
-  constructor({dataDir,inboxDir}){
+  constructor({dataDir,libraryDir}){
     this.filePath=join(dataDir,'catalog-directories.json');
-    this.inboxDir=inboxDir;
-    this.libraryBasePath='iCloud Drive/Playmaster/biblioteca';
+    this.libraryDir=libraryDir;
+    this.libraryBasePath=libraryDir;
     this.items=[];
     this.writeQueue=Promise.resolve();
   }
 
   async init(){
     await mkdir(join(this.filePath,'..'),{recursive:true});
+    await mkdir(this.libraryDir,{recursive:true});
     try{
       const saved=JSON.parse(await readFile(this.filePath,'utf8'));
       this.items=Array.isArray(saved.items)?saved.items:[];
       let migrated=false;
       for(const item of this.items){
         const parent=this.items.find(row=>row.id===item.parentId);
-        const expected=parent?`${this.libraryBasePath}/${parent.name}/${item.name}`:`${this.libraryBasePath}/${item.name}`;
-        if(item.destinationPath!==expected){item.destinationPath=expected;migrated=true;}
+        const expected=parent?join(parent.path,item.name):join(this.libraryDir,item.name);
+        if(item.path!==expected || item.destinationPath!==expected){
+          item.path=expected;
+          item.destinationPath=expected;
+          migrated=true;
+        }
       }
       if(migrated) await this.persist();
     }catch(error){
       if(error.code!=='ENOENT') throw error;
-      const now=new Date().toISOString();
-      this.items=defaults.map(([name,icon])=>({
-        id:randomUUID(),name,type:'folder',parentId:'',icon,
-        path:join(this.inboxDir,name),destinationPath:`${this.libraryBasePath}/${name}`,autoCatalog:true,active:true,
-        createdAt:now,updatedAt:now
-      }));
+      this.items=[];
       await this.persist();
     }
   }
@@ -47,7 +40,7 @@ export class CatalogDirectoryStore{
 
   async create(input){
     const now=new Date().toISOString();
-    const item={id:randomUUID(),...input,createdAt:now,updatedAt:now};
+    const item={id:randomUUID(),...input,destinationPath:input.path,createdAt:now,updatedAt:now};
     this.items.push(item);
     await this.persist();
     return item;
@@ -56,7 +49,7 @@ export class CatalogDirectoryStore{
   async update(id,input){
     const index=this.items.findIndex(item=>item.id===id);
     if(index<0) return null;
-    this.items[index]={...this.items[index],...input,updatedAt:new Date().toISOString()};
+    this.items[index]={...this.items[index],...input,destinationPath:input.path,updatedAt:new Date().toISOString()};
     await this.persist();
     return this.items[index];
   }
@@ -72,7 +65,7 @@ export class CatalogDirectoryStore{
   persist(){
     this.writeQueue=this.writeQueue.then(async()=>{
       const temporary=this.filePath+'.tmp';
-      await writeFile(temporary,JSON.stringify({version:1,items:this.items},null,2));
+      await writeFile(temporary,JSON.stringify({version:2,items:this.items},null,2));
       await rename(temporary,this.filePath);
     });
     return this.writeQueue;
