@@ -75,9 +75,9 @@ jobs:
           find storage/temp -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 
           echo "Limpando somente os dois arquivos de dados da biblioteca/importações..."
-          COUNTER=$(sed -n 's/.*"counter":[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p' data/imports.json | head -n 1)
+          COUNTER=$(sed -n 's/.*"counter":[[:space:]]*\([0-9][0-9]*\).*/\1/p' data/imports.json | head -n 1)
           COUNTER=${COUNTER:-0}
-          printf '{"version":3,"counter":%s,"items":[]}\\n' "$COUNTER" > data/imports.json
+          printf '{"version":3,"counter":%s,"items":[]}\n' "$COUNTER" > data/imports.json
           printf '%s\n' '{"version":1,"items":[]}' > data/catalog-directories.json
 
           echo "Reiniciando o AutoImport..."
