@@ -284,3 +284,33 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .table-play-button{flex:0 0 auto;height:23px;padding:0 6px;border:1px solid #24536c;border-radius:5px;background:#0b3047;color:#68d5f2;font-size:9px;cursor:pointer}
 .table-menu-button{flex:0 0 auto;width:24px;height:23px;margin-left:auto;border-color:transparent;background:transparent;font-size:11px}
 .library-row .item-actions{top:35px;right:8px}
+
+
+/* Ajustes aprovados: Sidebar recolhível e árvore de pastas compacta */
+.sidebar-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;padding-bottom:22px}
+.sidebar-tools .sidebar-brand{min-width:0;padding:0 0 0 4px}
+.sidebar-collapse-toggle{flex:0 0 28px;width:28px;height:28px;border:1px solid #263d54;border-radius:6px;background:#0c1b2d;color:#9bb8ce;font-size:20px;line-height:1;cursor:pointer}
+.sidebar-collapse-toggle:hover{border-color:#3c7394;color:#e8f6ff}
+#appView.sidebar-collapsed .app-shell{grid-template-columns:76px minmax(0,1fr)}
+#appView.sidebar-collapsed .sidebar{padding:18px 9px 12px}
+#appView.sidebar-collapsed .sidebar-tools{justify-content:center;flex-direction:column-reverse;padding-bottom:18px}
+#appView.sidebar-collapsed .sidebar-brand{padding:0}
+#appView.sidebar-collapsed .sidebar-brand>div{display:none}
+#appView.sidebar-collapsed .sidebar-brand .mark{width:36px;height:36px}
+#appView.sidebar-collapsed .sidebar-collapse-toggle{transform:rotate(180deg)}
+#appView.sidebar-collapsed .sidebar-caption,
+#appView.sidebar-collapsed .nav-item b{display:none}
+#appView.sidebar-collapsed .nav-item{font-size:0}
+#appView.sidebar-collapsed .nav-item{justify-content:center;gap:0;padding:0}
+#appView.sidebar-collapsed .nav-item>span{width:100%;font-size:18px}
+#appView.sidebar-collapsed .nav-group>.nav-item{justify-content:center}
+#appView.sidebar-collapsed .nav-subnav{display:none}
+#appView.sidebar-collapsed .sidebar-footer{justify-content:center;padding:14px 0 4px}
+#appView.sidebar-collapsed .sidebar-footer span{display:none}
+.catalog-content{grid-template-columns:190px minmax(0,1fr)}
+@media(max-width:1100px){.catalog-content{grid-template-columns:190px minmax(0,1fr)}}
+@media(max-width:800px){
+  #appView.sidebar-collapsed .app-shell{grid-template-columns:1fr}
+  #appView.sidebar-collapsed .sidebar{width:248px}
+}
+@media(max-width:700px){.catalog-content{grid-template-columns:1fr}}

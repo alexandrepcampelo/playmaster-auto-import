@@ -564,3 +564,22 @@ function navigateToView(view){
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>navigateToView(button.dataset.view)));
 $('#openImportSidebar').addEventListener('click',()=>{navigateToView('catalog');openImport();});
 $('#sidebarToggle').addEventListener('click',()=>$('#appView').classList.toggle('sidebar-open'));
+
+
+// Sidebar recolhível em telas maiores; mantém o menu lateral móvel independente.
+const sidebarCollapseToggle=$('#sidebarCollapseToggle');
+function setSidebarCollapsed(collapsed){
+  $('#appView').classList.toggle('sidebar-collapsed',collapsed);
+  sidebarCollapseToggle.setAttribute('aria-label',collapsed?'Expandir menu':'Recolher menu');
+  sidebarCollapseToggle.setAttribute('title',collapsed?'Expandir menu':'Recolher menu');
+  sidebarCollapseToggle.textContent=collapsed?'›':'‹';
+  try{localStorage.setItem('playmasterAutoImportSidebarCollapsed',String(collapsed));}catch{}
+}
+sidebarCollapseToggle.addEventListener('click',()=>{
+  setSidebarCollapsed(!$('#appView').classList.contains('sidebar-collapsed'));
+});
+try{
+  setSidebarCollapsed(localStorage.getItem('playmasterAutoImportSidebarCollapsed')==='true');
+}catch{
+  setSidebarCollapsed(false);
+}
