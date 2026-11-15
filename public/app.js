@@ -323,6 +323,7 @@ function updateAudioFooter(){
   $('#audioDuration').textContent=formatDuration(duration);
   audioProgress.max=duration||100;
   if(!audioProgress.matches(':active')) audioProgress.value=duration?current:0;
+  audioProgress.style.setProperty('--progress',duration?`${(current/duration)*100}%`:'0%');
   audioProgress.disabled=!duration;
 }
 $('#items').addEventListener('click',async event=>{
