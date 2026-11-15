@@ -324,3 +324,29 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 #appView.sidebar-collapsed .nav-item>span .sidebar-icon{width:19px;height:19px}
 
 .catalog-toolbar{display:flex;align-items:stretch;flex-direction:column;gap:12px;padding:14px 18px}.catalog-heading{flex:0 0 auto}.catalog-heading h1{margin:4px 0 0;font-size:20px}.catalog-toolbar-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;width:100%}.catalog-action{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #29465e;border-radius:7px;background:#0c2034;color:#b9d0df;font-size:10px;font-weight:700;white-space:nowrap;cursor:pointer}.catalog-action>span{font-size:15px;line-height:1}.catalog-action:hover:not(:disabled){border-color:#42c9ef;background:#12324a;color:#e9f7ff}.catalog-action.primary{background:linear-gradient(135deg,#087fbd,#12b7d6);border-color:#2bc9e8;color:#031623}.catalog-action.danger{border-color:rgba(229,92,116,.35);background:#321f2b;color:#ed9aaa}.catalog-action:disabled{opacity:.4;cursor:not-allowed}.catalog-search{flex:1 1 310px;width:auto;min-width:250px;max-width:none;height:36px;margin:0}.catalog-hidden-tabs{display:none}.library-count{color:#789bb2;font-size:9px}.library-table-head,.library-row{grid-template-columns:minmax(86px,1.05fr) minmax(145px,1.7fr) minmax(105px,1.25fr) 62px minmax(95px,1fr) 48px 48px 48px}@media(max-width:1050px){.catalog-toolbar{align-items:stretch;flex-direction:column}.catalog-toolbar-actions{justify-content:flex-start;width:100%}}@media(max-width:600px){.catalog-toolbar-actions{gap:6px}.catalog-action{padding:0 8px;font-size:9px}.catalog-search{flex-basis:100%;min-width:0;order:0}}
+
+
+/* Ícones do catálogo alinhados ao padrão visual do PlayMaster Air */
+.catalog-category-icon{display:inline-flex;flex:0 0 28px;width:28px;height:28px;align-items:center;justify-content:center;color:#159cf2;vertical-align:middle}
+.catalog-category-icon svg{display:block;width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.catalog-category-icon .catalog-dollar{font-size:29px;font-weight:500;line-height:1}
+.catalog-category-icon.category-musicas{color:#159cf2}
+.catalog-category-icon.category-comerciais{color:#f20c55}
+.catalog-category-icon.category-vinhetas{color:#ffd61c}
+.catalog-category-icon.category-intercons{color:#0aaa70}
+.catalog-category-icon.category-trilhas{color:#8038e8}
+.catalog-category-icon.category-chamadas{color:#ff6b1c}
+.catalog-category-icon.category-locucao{color:#f20c75}
+.catalog-category-icon.category-voice-track{color:#43d98d}
+.catalog-category-icon.category-hora-certa{color:#11bdc7}
+.catalog-category-icon.category-temperatura{color:#d5b000}
+.catalog-category-icon.category-jornalismo{color:#11bdc7}
+.catalog-category-icon.category-outros{color:#a8adb5}
+.folder-select{gap:9px}
+.folder-select .catalog-category-icon{width:25px;height:25px;flex-basis:25px}
+.folder-select .catalog-category-icon svg{width:24px;height:24px}
+.type-cell{display:flex;align-items:center;gap:7px}
+.type-cell .catalog-category-icon{width:23px;height:23px;flex-basis:23px}
+.type-cell .catalog-category-icon svg{width:22px;height:22px}
+.trash-item>.catalog-category-icon{width:42px;height:42px;flex-basis:42px}
+.trash-item>.catalog-category-icon svg{width:32px;height:32px}
