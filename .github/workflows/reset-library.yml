@@ -1,0 +1,98 @@
+name: Reset AutoImport audio library
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_reset:
+        description: "Confirma apagar todos os áudios, pastas da biblioteca e cadastros antigos do AutoImport?"
+        required: true
+        type: choice
+        options:
+          - "no"
+          - "yes"
+        default: "no"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playmaster-auto-import-library-reset
+  cancel-in-progress: false
+
+jobs:
+  reset-library:
+    if: inputs.confirm_reset == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Preparar acesso SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Zerar biblioteca do AutoImport no VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_PATH"
+          case "$DEPLOY_PATH" in
+            /*) ;;
+            *) echo "DEPLOY_PATH precisa ser absoluto."; exit 1 ;;
+          esac
+          case "$DEPLOY_PATH" in
+            /|/root|/home|/var|/opt|/srv) echo "DEPLOY_PATH amplo demais; operação cancelada."; exit 1 ;;
+          esac
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$DEPLOY_PATH"
+          test -f docker-compose.yml
+          grep -q 'container_name: playmaster-auto-import' docker-compose.yml
+          test -d data
+          mkdir -p storage/inbox storage/originals storage/processed storage/temp
+
+          echo "Parando o AutoImport para evitar gravações durante a limpeza..."
+          docker compose stop playmaster-auto-import
+
+          echo "Removendo conteúdo antigo da caixa de entrada e categorias..."
+          find storage/inbox -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          echo "Removendo áudios originais..."
+          find storage/originals -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          echo "Removendo áudios processados..."
+          find storage/processed -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          echo "Removendo arquivos temporários de áudio/importação..."
+          find storage/temp -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+
+          echo "Limpando somente os dois arquivos de dados da biblioteca/importações..."
+          printf '%s\\n' '{"version":3,"counter":0,"items":[]}' > data/imports.json
+          printf '%s\\n' '{"version":1,"items":[]}' > data/catalog-directories.json
+
+          echo "Reiniciando o AutoImport..."
+          docker compose up -d playmaster-auto-import
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3600/api/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:3600/api/health
+          echo
+          echo "Contagem de arquivos restantes nas áreas de áudio:"
+          for dir in storage/inbox storage/originals storage/processed storage/temp; do
+            printf '%s: ' "$dir"
+            find "$dir" -type f | wc -l
+          done
+          echo "Biblioteca e registros antigos zerados. Código, credenciais e configurações preservados."
+          REMOTE
