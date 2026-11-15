@@ -71,6 +71,8 @@ jobs:
           find storage/originals -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
           echo "Removendo áudios processados..."
           find storage/processed -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+          echo "Removendo a Biblioteca física do VPS..."
+          find storage/library -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
           echo "Removendo arquivos temporários de áudio/importação..."
           find storage/temp -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 
@@ -92,7 +94,7 @@ jobs:
           curl -fsS http://127.0.0.1:3600/api/health
           echo
           echo "Contagem de arquivos restantes nas áreas de áudio:"
-          for dir in storage/inbox storage/originals storage/processed storage/temp; do
+          for dir in storage/inbox storage/originals storage/processed storage/temp storage/library; do
             printf '%s: ' "$dir"
             find "$dir" -type f | wc -l
           done
