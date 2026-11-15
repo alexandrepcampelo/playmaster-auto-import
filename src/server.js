@@ -140,7 +140,7 @@ async function validateCatalogDirectory(input){
   const type=input.type==='subfolder'?'subfolder':'folder';
   const parentId=type==='subfolder'?String(input.parentId||''):'';
   const parent=parentId?directoryStore.find(parentId):null;
-  if(!name) throw Object.assign(new Error('Informe o nome da pasta.'),{statusCode:400});
+  if(!name||name==='.'||name==='..') throw Object.assign(new Error('Informe um nome de pasta válido.'),{statusCode:400});
   if(type==='subfolder'&&(!parent||parent.type!=='folder'||!parent.active)) throw Object.assign(new Error('Selecione uma pasta principal ativa.'),{statusCode:400});
   const icon=directoryIcons.has(String(input.icon||''))?String(input.icon):'folder';
   await mkdir(config.libraryDir,{recursive:true});
@@ -158,6 +158,7 @@ async function validateCatalogDirectory(input){
   }
   if(parent&&basePath!==resolve(parent.path)) throw Object.assign(new Error('A subpasta deve ser criada dentro da pasta principal selecionada.'),{statusCode:400});
   const target=resolve(basePath,name);
+  if(target===libraryRoot||!target.startsWith(libraryRoot+sep)) throw Object.assign(new Error('O nome da pasta gera um caminho fora da Biblioteca do VPS.'),{statusCode:400});
   const existingTarget=await realpath(target).catch(()=>null);
   if(existingTarget&&(existingTarget===libraryRoot||existingTarget.startsWith(libraryRoot+sep))===false) throw Object.assign(new Error('A pasta de destino aponta para fora da Biblioteca do VPS.'),{statusCode:400});
   const samePath=directoryStore.list().find(item=>item.id!==input.id&&resolve(item.path)===target);
