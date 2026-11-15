@@ -69,11 +69,28 @@ function refreshDirectorySelects(){
   if(roots.some(item=>item.id===previous))parent.value=previous;else if(previous==='__new_parent__')parent.value=previous;
  }
 }
+async function refreshAgentSyncStatus(){
+ const wrap=$dir('agentSyncStatus');if(!wrap)return;
+ try{
+  const status=await actionRequest('/api/agent/status');
+  if(status.connected){
+   const detail=status.status==='error'?'Falha: '+(status.error||'verifique o agente no Windows.'):status.status==='syncing'?'Sincronizando as pastas da Biblioteca...':'Conectado à pasta autorizada: '+(status.libraryRoot||'Windows');
+   wrap.innerHTML='<span class="agent-sync-indicator online"></span><div><strong>Agente Windows conectado</strong><p>'+directoryEscape(detail)+' · '+Number(status.created||0)+' pasta(s) criada(s), '+Number(status.existing||0)+' já existente(s)</p></div>';
+   wrap.classList.toggle('has-error',status.status==='error');
+  }else{
+   wrap.innerHTML='<span class="agent-sync-indicator"></span><div><strong>Agente Windows não conectado</strong><p>As pastas serão criadas no iCloud Drive quando o agente local estiver instalado e autorizado.</p></div>';
+   wrap.classList.remove('has-error');
+  }
+ }catch(error){
+  wrap.innerHTML='<span class="agent-sync-indicator"></span><div><strong>Status da integração indisponível</strong><p>'+directoryEscape(error.message)+'</p></div>';
+ }
+}
 async function loadDirectorySettings(){
  const result=await actionRequest('/api/catalog-directories');
  catalogDirectories=result.items||[];
  directoryLibraryRoot=result.inboxDir||'';
  refreshDirectorySelects();renderDirectorySettings();renderLibrary();
+ await refreshAgentSyncStatus();
 }
 function directoryBaseFor(item){
  if(!item)return directoryLibraryRoot;
