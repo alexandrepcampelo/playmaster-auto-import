@@ -131,6 +131,7 @@ function libraryRowTemplate(item){
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
       ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" data-title="${escapeText(title)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
       <span class="library-name-text">${escapeText(title)}</span>
+      ${canPlay?`<a class="download-audio-button" href="/api/imports/${encodeURIComponent(item.id)}/download" aria-label="Salvar ${escapeText(title)} no Arquivos" title="Salvar áudio processado">↓</a>`:''}
       <button class="item-menu-btn table-menu-button" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Mais opções de ${escapeText(title)}" aria-expanded="false">•••</button>
     </span>${menu}</span>
     <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
