@@ -158,6 +158,8 @@ async function validateCatalogDirectory(input){
   }
   if(parent&&basePath!==resolve(parent.path)) throw Object.assign(new Error('A subpasta deve ser criada dentro da pasta principal selecionada.'),{statusCode:400});
   const target=resolve(basePath,name);
+  const existingTarget=await realpath(target).catch(()=>null);
+  if(existingTarget&&(existingTarget===libraryRoot||existingTarget.startsWith(libraryRoot+sep))===false) throw Object.assign(new Error('A pasta de destino aponta para fora da Biblioteca do VPS.'),{statusCode:400});
   const samePath=directoryStore.list().find(item=>item.id!==input.id&&resolve(item.path)===target);
   if(samePath) throw Object.assign(new Error('Este caminho já está vinculado a outro diretório do Catálogo.'),{statusCode:409});
   const duplicate=directoryStore.list().find(item=>item.id!==input.id&&item.type===type&&item.parentId===parentId&&item.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR'));
