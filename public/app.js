@@ -50,6 +50,25 @@ function categoryClass(category){
   return String(category||'Outros').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-');
 }
 
+function categoryIcon(category){
+  const key=String(category||'Outros').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+  const icons={
+    musicas:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 24V7l15-3v17"/><circle cx="8" cy="24" r="4"/><circle cx="23" cy="21" r="4"/></svg>',
+    comerciais:'<span class="catalog-dollar">$</span>',
+    vinhetas:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 13v6h6l14 7V6l-14 7H4z"/><path d="M10 19l3 8h5l-4-6M28 12l3-3M28 20l3 3"/></svg>',
+    trilhas:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 4v10M7 20v8M16 4v4M16 14v14M25 4v14M25 24v4"/><path d="M3 14h8M12 9h8M21 18h8"/></svg>',
+    chamadas:'<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="11" width="24" height="17" rx="2"/><path d="M4 11V5h24v6H4zM7 5l5 6M16 5l5 6M25 5l3 4M12 16l9 4-9 4z"/></svg>',
+    intercons:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M13 19l-2 2a5 5 0 0 1-7-7l5-5a5 5 0 0 1 7 0"/><path d="M19 13l2-2a5 5 0 0 1 7 7l-5 5a5 5 0 0 1-7 0"/><path d="M11 21l10-10"/></svg>',
+    locucao:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 24v-4c0-3 2-4 5-5V9c0-4 3-6 7-6 4 0 6 3 6 7v4l-4 2-2 5-6 2v3H7z" fill="currentColor" stroke="none"/><path d="M25 10q5 3 0 7M28 7q7 6 0 13" fill="none" stroke="currentColor" stroke-width="2.3"/></svg>',
+    'voice-track':'<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="12" y="3" width="8" height="18" rx="4"/><path d="M7 15a9 9 0 0 0 18 0M16 24v5M11 29h10"/></svg>',
+    'hora-certa':'<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12"/><path d="M16 8v8l6 4"/></svg>',
+    temperatura:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 19V7a4 4 0 0 1 8 0v12a7 7 0 1 1-8 0z"/><path d="M16 11v13"/></svg>',
+    jornalismo:'<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="2"/><path d="M8 10h6v7H8zM18 10h7M18 14h7M8 21h17M8 24h17"/></svg>',
+    outros:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4a6 6 0 0 0-6 6c0 8-3 9-5 12h22c-2-3-5-4-5-12a6 6 0 0 0-6-6z"/><path d="M12 26a4 4 0 0 0 8 0"/></svg>'
+  };
+  return '<span class="catalog-category-icon category-'+categoryClass(category)+'">'+(icons[key]||icons.outros)+'</span>';
+}
+
 const defaultLibraryFolders=['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros'];
 let selectedFolderCategory='';
 let selectedFolderSubcategory='';
@@ -76,9 +95,9 @@ function folderTreeTemplate(){
     return `<div class="folder-group">
       <div class="folder-line">
         <button class="folder-toggle" type="button" data-folder-toggle="${escapeText(category)}" aria-label="${expanded?'Recolher':'Expandir'} ${escapeText(category)}">${subcategories.length?(expanded?'⌄':'›'):'·'}</button>
-        <button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}"><span class="folder-glyph">▰</span><span>${escapeText(category)}</span></button>
+        <button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></button>
       </div>
-      ${expanded?subcategories.map(subcategory=>`<button class="folder-select folder-child ${selectedFolderCategory===category&&selectedFolderSubcategory===subcategory?'active':''}" type="button" data-folder-category="${escapeText(category)}" data-folder-subcategory="${escapeText(subcategory)}"><span class="folder-glyph">▰</span><span>${escapeText(subcategory)}</span></button>`).join(''):''}
+      ${expanded?subcategories.map(subcategory=>`<button class="folder-select folder-child ${selectedFolderCategory===category&&selectedFolderSubcategory===subcategory?'active':''}" type="button" data-folder-category="${escapeText(category)}" data-folder-subcategory="${escapeText(subcategory)}">${categoryIcon(category)}<span>${escapeText(subcategory)}</span></button>`).join(''):''}
     </div>`;
   }).join('');
 }
@@ -95,7 +114,7 @@ function libraryRowTemplate(item){
     <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
   </div>`;
   return `<div class="library-row" role="row">
-    <span class="library-cell type-cell" title="${escapeText(category)}">${escapeText(category)}</span>
+    <span class="library-cell type-cell" title="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></span>
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
       ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
       <span class="library-name-text">${escapeText(title)}</span>
@@ -148,7 +167,7 @@ function formatDate(value){
 function trashTemplate(item){
   const title=item.title||item.fileName;
   return `<div class="trash-item">
-    <span class="item-icon category-${categoryClass(item.category)}">♫</span>
+    ${categoryIcon(item.category)}
     <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)}${item.subcategory?` / ${escapeText(item.subcategory)}`:''} · excluído em ${escapeText(formatDate(item.deletedAt))}</small></span>
     <div class="trash-actions"><button type="button" data-action="restore" data-id="${escapeText(item.id)}">↶ Restaurar</button><button class="danger" type="button" data-action="purge" data-id="${escapeText(item.id)}">Excluir definitivamente</button></div>
   </div>`;
