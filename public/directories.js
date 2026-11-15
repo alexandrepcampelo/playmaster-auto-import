@@ -40,7 +40,7 @@ function renderDirectorySettings(){
   const selected=selectedDirectoryIds.has(item.id);
   const parent=item.type==='subfolder'?catalogDirectories.find(row=>row.id===item.parentId):null;
   const rootName=parent?.name||item.name;
-  const path=directoryEscape(item.path);
+  const path=directoryEscape(item.destinationPath||item.path);
   const iconMarkup=item.customIcon?'<img class="directory-custom-icon" src="/api/catalog-icon?path='+encodeURIComponent(item.customIcon)+'" alt="">':directoryGlyph(item.icon);
   return `<tr class="${parent?'subfolder-row':''}">
    <td class="directory-name-cell"><input class="directory-select" type="checkbox" data-id="${directoryEscape(item.id)}" ${selected?'checked':''} aria-label="Selecionar ${directoryEscape(item.name)}"><span class="catalog-directory-icon icon-${directoryEscape(item.icon)}">${iconMarkup}</span><strong>${directoryEscape(item.name)}</strong></td>
@@ -172,8 +172,8 @@ function closeDirectoryBrowser(){
 async function openDirectoryPath(id){
  try{
   const result=await actionRequest(`/api/catalog-directories/${encodeURIComponent(id)}/open`);
-  pathToCopy=result.path;$dir('directoryPathTitle').textContent=result.name;$dir('directoryPathValue').textContent=result.path;
-  $dir('directoryPathStatus').textContent=result.exists?'Diretório encontrado no servidor.':'O diretório ainda não existe no servidor.';
+  pathToCopy=result.destinationPath||result.path;$dir('directoryPathTitle').textContent=result.name;$dir('directoryPathValue').textContent=result.destinationPath||result.path;
+  $dir('directoryPathStatus').textContent='Destino previsto no iCloud Drive. A criação física será feita quando houver acesso autorizado à pasta sincronizada no computador.';
   $dir('directoryPathModal').hidden=false;document.body.classList.add('modal-open');
  }catch(error){alert(error.message);}
 }
