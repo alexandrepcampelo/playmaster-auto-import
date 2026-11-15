@@ -143,10 +143,13 @@ async function validateCatalogDirectory(input){
   if(!name) throw Object.assign(new Error('Informe o nome da pasta.'),{statusCode:400});
   if(type==='subfolder'&&(!parent||parent.type!=='folder'||!parent.active)) throw Object.assign(new Error('Selecione uma pasta principal ativa.'),{statusCode:400});
   const icon=directoryIcons.has(String(input.icon||''))?String(input.icon):'folder';
-  const libraryRoot=await realpath(config.inboxDir);
+  await mkdir(config.libraryDir,{recursive:true});
+  const libraryRoot=await realpath(config.libraryDir);
   const requestedBase=resolve(String(input.basePath||parent?.path||libraryRoot));
+  if(requestedBase!==libraryRoot&&(!parent||requestedBase!==resolve(parent.path))) throw Object.assign(new Error('O destino deve ficar dentro da Biblioteca do VPS.'),{statusCode:400});
   let basePath;
-  try{basePath=await realpath(requestedBase);}catch{throw Object.assign(new Error('Selecione um diretório existente no computador/servidor.'),{statusCode:400});}
+  try{basePath=await realpath(requestedBase);}catch{throw Object.assign(new Error('O diretório-base não existe na Biblioteca do VPS.'),{statusCode:400});}
+  if(basePath!==libraryRoot&&!basePath.startsWith(libraryRoot+sep)) throw Object.assign(new Error('O destino está fora da Biblioteca do VPS.'),{statusCode:400});
   const customIcon=String(input.customIcon||'').trim();
   if(customIcon){
     const iconPath=await realpath(resolve(customIcon)).catch(()=>null);
@@ -159,9 +162,7 @@ async function validateCatalogDirectory(input){
   if(samePath) throw Object.assign(new Error('Este caminho já está vinculado a outro diretório do Catálogo.'),{statusCode:409});
   const duplicate=directoryStore.list().find(item=>item.id!==input.id&&item.type===type&&item.parentId===parentId&&item.name.toLocaleLowerCase('pt-BR')===name.toLocaleLowerCase('pt-BR'));
   if(duplicate) throw Object.assign(new Error('Já existe uma pasta com esse nome neste nível.'),{statusCode:409});
-  const libraryBasePath='iCloud Drive/Playmaster/biblioteca';
-  const parentDirectory=parent?`${libraryBasePath}/${parent.name}`:libraryBasePath;
-  const destinationPath=`${parentDirectory}/${name}`;
+  const destinationPath=target;
   return {name,type,parentId,icon,customIcon,path:target,destinationPath,autoCatalog:Boolean(input.autoCatalog),active:Boolean(input.active)};
 }
 
@@ -275,16 +276,16 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/agent/library-directories' && req.method==='GET'){
       if(!hasApiToken(req)) return json(res,401,{error:'Token de integração necessário.'});
-      const prefix='iCloud Drive/Playmaster/biblioteca/';
+      const prefix=config.libraryDir.endsWith(sep)?config.libraryDir:config.libraryDir+sep;
       const items=directoryStore.list().filter(item=>item.active).map(item=>{
-        const destination=String(item.destinationPath||'');
+        const destination=resolve(String(item.path||''));
         if(!destination.startsWith(prefix)) return null;
         const relativePath=destination.slice(prefix.length);
         const segments=relativePath.split('/');
         if(!relativePath||segments.some(part=>!part||part==='.'||part==='..'||/[\\\\<>:"|?*\\x00-\\x1f]/.test(part))) return null;
         return {id:item.id,name:item.name,type:item.type,relativePath};
       }).filter(Boolean);
-      return json(res,200,{ok:true,libraryBasePath:'iCloud Drive/Playmaster/biblioteca',items,generatedAt:new Date().toISOString()});
+      return json(res,200,{ok:true,libraryBasePath:config.libraryDir,items,generatedAt:new Date().toISOString()});
     }
     if(url.pathname==='/api/agent/library-sync' && req.method==='POST'){
       if(!hasApiToken(req)) return json(res,401,{error:'Token de integração necessário.'});
@@ -301,7 +302,7 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
-      return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir,libraryBasePath:'iCloud Drive/Playmaster/biblioteca',destinationMode:'planned-local-sync'});
+      return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir,libraryBasePath:config.libraryDir,destinationMode:'vps'});
     }
     if(url.pathname==='/api/catalog-directories' && req.method==='POST'){
       if(!requirePanelSession(req,res)) return;
@@ -348,7 +349,7 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/status' && !requireReadAccess(req,res)) return;
     if(url.pathname==='/api/status') return json(res,200,{
       ok:true,counts:store.counts(),inboxDir:config.inboxDir,originalsDir:config.originalsDir,processedDir:config.processedDir,
-      stationCode:config.stationCode,pollIntervalMs:config.pollIntervalMs,
+      stationCode:config.stationCode,pollIntervalMs:config.pollIntervalMs,libraryDir:config.libraryDir,
       audioProfile:{output:'MP3 320 kbps CBR · 44,1 kHz',targetLufs:config.targetLufs,truePeakDb:config.truePeakDb}
     });
     if(url.pathname==='/api/imports' && req.method==='GET'){
