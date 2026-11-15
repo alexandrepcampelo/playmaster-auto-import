@@ -2,7 +2,8 @@ const $dir=id=>document.getElementById(id);
 let selectedDirectoryIds=new Set();
 let pathToCopy='';
 let directoryLibraryRoot='';
-let directoryBrowserPath='';
+let directoryBrowserPath='/';
+let directoryBrowserMode='folders';
 let directoryEditingItem=null;
 function directoryEscape(value){const node=document.createElement('span');node.textContent=String(value??'');return node.innerHTML;}
 function directoryGlyph(icon){return ({folder:'▰',music:'♫',commercial:'$',megaphone:'◖',link:'↔',wave:'≋',headphones:'♬',microphone:'♩',voice:'🎙',clock:'◷',thermometer:'♨',news:'▤',star:'★',archive:'▣'})[icon]||'▰';}
@@ -19,8 +20,9 @@ function renderDirectorySettings(){
   const parent=item.type==='subfolder'?catalogDirectories.find(row=>row.id===item.parentId):null;
   const rootName=parent?.name||item.name;
   const path=directoryEscape(item.path);
+  const iconMarkup=item.customIcon?'<img class="directory-custom-icon" src="/api/catalog-icon?path='+encodeURIComponent(item.customIcon)+'" alt="">':directoryGlyph(item.icon);
   return `<tr class="${parent?'subfolder-row':''}">
-   <td class="directory-name-cell"><input class="directory-select" type="checkbox" data-id="${directoryEscape(item.id)}" ${selected?'checked':''} aria-label="Selecionar ${directoryEscape(item.name)}"><span class="catalog-directory-icon icon-${directoryEscape(item.icon)}">${directoryGlyph(item.icon)}</span><strong>${directoryEscape(item.name)}</strong></td>
+   <td class="directory-name-cell"><input class="directory-select" type="checkbox" data-id="${directoryEscape(item.id)}" ${selected?'checked':''} aria-label="Selecionar ${directoryEscape(item.name)}"><span class="catalog-directory-icon icon-${directoryEscape(item.icon)}">${iconMarkup}</span><strong>${directoryEscape(item.name)}</strong></td>
    <td><span class="directory-type-pill">${directoryEscape(rootName)}</span></td>
    <td><div class="directory-path-cell"><span title="${path}">${path}</span><button class="directory-open-button" type="button" data-open-path="${directoryEscape(item.id)}" title="Ver caminho" aria-label="Ver caminho de ${directoryEscape(item.name)}">↗</button></div></td>
    <td><label class="directory-toggle" title="Autocatalogar"><input type="checkbox" data-toggle="autoCatalog" data-id="${directoryEscape(item.id)}" ${item.autoCatalog?'checked':''}><span></span></label></td>
@@ -71,6 +73,7 @@ function openDirectoryEditor(item=null){
  $dir('directoryName').value=item?.name||'';
  $dir('directoryType').value=item?.type||'subfolder';
  $dir('directoryIcon').value=item?.icon||'folder';
+ $dir('directoryCustomIcon').value=item?.customIcon||'';
  $dir('directoryAutoCatalog').checked=item?Boolean(item.autoCatalog):true;
  $dir('directoryActive').checked=item?Boolean(item.active):true;
  refreshDirectorySelects();
@@ -97,6 +100,7 @@ async function saveDirectory(event){
   name:$dir('directoryName').value.trim(),type,
   parentId:type==='subfolder'?$dir('directoryParent').value:'',
   icon:$dir('directoryIcon').value,
+  customIcon:$dir('directoryCustomIcon').value.trim(),
   basePath:$dir('directoryPath').value.trim(),
   autoCatalog:$dir('directoryAutoCatalog').checked,
   active:$dir('directoryActive').checked
@@ -110,16 +114,22 @@ async function saveDirectory(event){
  finally{button.disabled=false;}
 }
 async function browseDirectory(path){
- const result=await actionRequest('/api/catalog-directories/browse?path='+encodeURIComponent(path||directoryLibraryRoot));
+ const result=await actionRequest('/api/catalog-directories/browse?mode='+directoryBrowserMode+'&path='+encodeURIComponent(path||'/'));
  directoryBrowserPath=result.path;
  $dir('directoryBrowserCurrent').textContent=result.path;
  $dir('directoryBrowserUp').disabled=!result.parent;
  $dir('directoryBrowserUp').dataset.parent=result.parent||'';
- $dir('directoryBrowserList').innerHTML=result.folders.length?result.folders.map(folder=>`<button type="button" class="directory-browser-entry" data-browse-path="${directoryEscape(folder.path)}"><span>📁</span><strong>${directoryEscape(folder.name)}</strong><span>›</span></button>`).join(''):'<p class="directory-browser-empty">Não há subpastas neste local.</p>';
+ const folderRows=result.folders.map(folder=>'<button type="button" class="directory-browser-entry" data-browse-path="'+directoryEscape(folder.path)+'"><span>📁</span><strong>'+directoryEscape(folder.name)+'</strong><span>›</span></button>').join('');
+ const fileRows=(result.files||[]).map(file=>'<button type="button" class="directory-browser-entry directory-icon-file" data-select-icon="'+directoryEscape(file.path)+'"><span>🖼️</span><strong>'+directoryEscape(file.name)+'</strong><span>＋</span></button>').join('');
+ $dir('directoryBrowserList').innerHTML=(folderRows+fileRows)||'<p class="directory-browser-empty">Não há pastas ou imagens neste local.</p>';
 }
-async function openDirectoryBrowser(){
+async function openDirectoryBrowser(mode='folders'){
+ directoryBrowserMode=mode;
  try{
-  await browseDirectory($dir('directoryPath').value||directoryLibraryRoot);
+  await browseDirectory('/');
+  $dir('directoryBrowserTitle').textContent=mode==='icons'?'Buscar ícone':'Selecionar caminho';
+  $dir('directoryBrowserDescription').textContent=mode==='icons'?'Escolha uma imagem PNG, JPG, WEBP ou GIF no computador/servidor.':'Navegue a partir da raiz do computador para escolher uma pasta.';
+  $dir('directoryBrowserSelect').hidden=mode==='icons';
   $dir('directoryBrowserError').textContent='';
   $dir('directoryBrowserModal').hidden=false;
   document.body.classList.add('modal-open');
@@ -127,6 +137,7 @@ async function openDirectoryBrowser(){
 }
 function closeDirectoryBrowser(){
  $dir('directoryBrowserModal').hidden=true;
+ $dir('directoryBrowserSelect').hidden=false;
  document.body.classList.add('modal-open');
 }
 async function openDirectoryPath(id){
@@ -158,7 +169,9 @@ $dir('directoryRefresh').addEventListener('click',()=>loadDirectorySettings().ca
 $dir('directoryForm').addEventListener('submit',saveDirectory);
 $dir('directoryType').addEventListener('change',updateDirectoryTypeFields);
 $dir('directoryParent').addEventListener('change',updateDirectoryTypeFields);
-$dir('directoryBrowse').addEventListener('click',openDirectoryBrowser);
+$dir('directoryBrowse').addEventListener('click',()=>openDirectoryBrowser('folders'));
+$dir('directoryIconBrowse').addEventListener('click',()=>openDirectoryBrowser('icons'));
+$dir('directoryBrowserList').addEventListener('click',event=>{const icon=event.target.closest('[data-select-icon]');if(!icon)return;$dir('directoryCustomIcon').value=icon.dataset.selectIcon;closeDirectoryBrowser();});
 $dir('directoryModalClose').addEventListener('click',closeDirectoryEditor);
 $dir('directoryCancel').addEventListener('click',closeDirectoryEditor);
 $dir('directoryModal').addEventListener('click',event=>{if(event.target===event.currentTarget)closeDirectoryEditor();});
