@@ -314,3 +314,11 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
   #appView.sidebar-collapsed .sidebar{width:248px}
 }
 @media(max-width:700px){.catalog-content{grid-template-columns:1fr}}
+
+
+/* Ícones vetoriais consistentes do Sidebar */
+.sidebar-nav .nav-item>span{display:grid;place-items:center;width:18px;height:20px;flex:0 0 18px;color:#7895ae}
+.sidebar-nav .nav-item>span .sidebar-icon{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.sidebar-nav .nav-item.active>span{color:#39c7f5}
+#appView.sidebar-collapsed .nav-item>span{width:100%;height:22px;flex:0 0 22px}
+#appView.sidebar-collapsed .nav-item>span .sidebar-icon{width:19px;height:19px}
