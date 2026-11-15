@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           install -m 700 -d ~/.ssh
-          printf '%s\\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
@@ -75,8 +75,8 @@ jobs:
           find storage/temp -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 
           echo "Limpando somente os dois arquivos de dados da biblioteca/importações..."
-          printf '%s\\n' '{"version":3,"counter":0,"items":[]}' > data/imports.json
-          printf '%s\\n' '{"version":1,"items":[]}' > data/catalog-directories.json
+          printf '%s\n' '{"version":3,"counter":0,"items":[]}' > data/imports.json
+          printf '%s\n' '{"version":1,"items":[]}' > data/catalog-directories.json
 
           echo "Reiniciando o AutoImport..."
           docker compose up -d playmaster-auto-import
