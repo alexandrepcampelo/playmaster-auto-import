@@ -89,9 +89,18 @@ function libraryRowTemplate(item){
   const duration=formatDuration(item.duration);
   const category=item.category||'Outros';
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
+  const canPlay=item.status==='ready'&&item.processedPath;
+  const menu=`<div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
+    <button type="button" data-action="move" data-id="${escapeText(item.id)}"><span>↪</span>Mover para outra pasta</button>
+    <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
+  </div>`;
   return `<div class="library-row" role="row">
     <span class="library-cell type-cell" title="${escapeText(category)}">${escapeText(category)}</span>
-    <span class="library-cell name-cell" title="${escapeText(title)}">${escapeText(title)}</span>
+    <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
+      ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
+      <span class="library-name-text">${escapeText(title)}</span>
+      <button class="item-menu-btn table-menu-button" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Mais opções de ${escapeText(title)}" aria-expanded="false">•••</button>
+    </span>${menu}</span>
     <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
     <span class="library-cell duration-cell">${escapeText(duration)}</span>
     <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
