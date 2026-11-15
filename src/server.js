@@ -408,7 +408,7 @@ const server=http.createServer(async(req,res)=>{
       const item=store.findById(id);
       if(!item || item.status!=='deleted') return json(res,404,{error:'Item da Lixeira não encontrado.'});
       await removeStoredFile(item.originalPath,config.originalsDir);
-      await removeStoredFile(item.processedPath,config.processedDir);
+      await removeStoredFile(item.processedPath,item.source==='voice-track'?config.processedDir:config.libraryDir);
       await store.remove(id);
       return json(res,200,{ok:true,id});
     }
