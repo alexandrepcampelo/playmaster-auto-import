@@ -2,6 +2,7 @@ import { loadConfig } from './config.js';
 import { discoverFiles } from './files.js';
 import { AgentState } from './state.js';
 import { uploadFile } from './client.js';
+import { syncLibraryDirectories } from './directories.js';
 
 const config=await loadConfig();
 const state=new AgentState(config.stateFile);
@@ -12,6 +13,12 @@ async function cycle(){
   if(running) return;
   running=true;
   try{
+    if(config.libraryRoot){
+      try{
+        const sync=await syncLibraryDirectories(config);
+        if(sync&&(sync.created||sync.existing)) console.log(`Biblioteca local sincronizada: ${sync.created} criada(s), ${sync.existing} já existente(s).`);
+      }catch(error){console.error(`Falha ao sincronizar pastas da Biblioteca: ${error.message}`);}
+    }
     const files=await discoverFiles(config.folders);
     for(const file of files) state.observe(file);
     await state.persist();
