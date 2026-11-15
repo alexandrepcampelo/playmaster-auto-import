@@ -407,3 +407,23 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 /* Botão Importar Áudio em verde */
 #openImport.catalog-action.primary{background:linear-gradient(135deg,#168447,#22b45f);border-color:#35d477;color:#f2fff7}
 #openImport.catalog-action.primary:hover:not(:disabled){background:linear-gradient(135deg,#1a9b52,#2acb70);border-color:#65e99a;color:#fff}
+
+
+/* Ícone de lixeira na tabela da Biblioteca */
+.table-icon-button.delete-icon svg{display:block;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* Lixeira compacta com reprodução antes dos ícones */
+.trash-item{grid-template-columns:28px 28px minmax(0,1fr) auto;gap:8px;padding:9px}
+.trash-item>.catalog-category-icon{width:27px;height:27px;flex-basis:27px}
+.trash-item>.catalog-category-icon svg{width:22px;height:22px}
+.trash-play-button{display:grid;place-items:center;width:27px;height:27px;padding:0;border:1px solid #28546b;border-radius:6px;background:#0b3047;color:#72d8f4;font-size:10px;cursor:pointer}
+.trash-play-button:hover{border-color:#42c9ef;background:#12405b}
+.trash-actions{grid-column:auto;justify-content:flex-end;gap:5px}
+.trash-actions button{height:27px;padding:0 8px;font-size:8px}
+@media(max-width:760px){
+  .trash-item{grid-template-columns:25px 25px minmax(0,1fr);gap:7px;padding:8px}
+  .trash-item>.catalog-category-icon{width:25px;height:25px;flex-basis:25px}
+  .trash-item>.catalog-category-icon svg{width:20px;height:20px}
+  .trash-play-button{width:25px;height:25px}
+  .trash-actions{grid-column:1/-1}
+}
