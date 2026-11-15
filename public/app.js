@@ -128,7 +128,7 @@ function libraryRowTemplate(item){
     <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
     <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" disabled title="Editor de áudio — em preparação" aria-label="Editor de áudio">≋</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button" type="button" data-action="edit" data-id="${escapeText(item.id)}" title="Editar informações" aria-label="Editar informações">✎</button></span>
-    <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Excluir da biblioteca" aria-label="Excluir da biblioteca">⌫</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Mover para a Lixeira" aria-label="Mover para a Lixeira"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></span>
   </div>`;
 }
 
@@ -175,7 +175,10 @@ function formatDate(value){
 
 function trashTemplate(item){
   const title=item.title||item.fileName;
+  const canPlay=item.deletedFromStatus==='ready'&&Boolean(item.processedPath);
+  const audioUrl=`/api/trash/${encodeURIComponent(item.id)}/audio`;
   return `<div class="trash-item">
+    ${canPlay?`<button class="play-audio trash-play-button" type="button" data-url="${escapeText(audioUrl)}" data-title="${escapeText(title)}" aria-label="Reproduzir ${escapeText(title)}">▶</button>`:''}
     ${categoryIcon(item.category)}
     <span class="process-name"><strong>${escapeText(title)}</strong><small>${escapeText(item.id)} · ${escapeText(item.category)}${item.subcategory?` / ${escapeText(item.subcategory)}`:''} · excluído em ${escapeText(formatDate(item.deletedAt))}</small></span>
     <div class="trash-actions"><button type="button" data-action="restore" data-id="${escapeText(item.id)}">↶ Restaurar</button><button class="danger" type="button" data-action="purge" data-id="${escapeText(item.id)}">Excluir definitivamente</button></div>
