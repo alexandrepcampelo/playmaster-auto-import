@@ -482,3 +482,19 @@ async function start(){
 
 setInterval(()=>{ if(!$('#appView').hidden) refresh(); },10000);
 start();
+
+
+// Navegação do Sidebar e abertura da importação como subaba do Catálogo.
+const pageTitles={dashboard:'Painel Principal',company:'Empresa',schedule:'Programação',catalog:'Catálogo',clock:'Hora Certa',temperature:'Temperatura',testimonial:'Testemunhal',journalism:'Jornalismo',reports:'Relatórios',settings:'Configurações'};
+function navigateToView(view){
+  const target=document.getElementById(view+'View');
+  if(!target) return;
+  document.querySelectorAll('.page-view').forEach(page=>{page.hidden=page!==target;});
+  document.querySelectorAll('.nav-item[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
+  document.querySelectorAll('.nav-subitem[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
+  $('#pageTitle').textContent=pageTitles[view]||'PlayMaster Auto Import';
+  $('#appView').classList.remove('sidebar-open');
+}
+document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>navigateToView(button.dataset.view)));
+$('#openImportSidebar').addEventListener('click',()=>{navigateToView('catalog');openImport();});
+$('#sidebarToggle').addEventListener('click',()=>$('#appView').classList.toggle('sidebar-open'));
