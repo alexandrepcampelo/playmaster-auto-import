@@ -51,7 +51,7 @@ function categoryClass(category){
 }
 
 function categoryIcon(category){
-  const key=String(category||'Outros').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+  const key=categoryClass(category);
   const icons={
     musicas:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M12 24V7l15-3v17"/><circle cx="8" cy="24" r="4"/><circle cx="23" cy="21" r="4"/></svg>',
     comerciais:'<span class="catalog-dollar">$</span>',
@@ -66,7 +66,7 @@ function categoryIcon(category){
     jornalismo:'<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="5" width="26" height="22" rx="2"/><path d="M8 10h6v7H8zM18 10h7M18 14h7M8 21h17M8 24h17"/></svg>',
     outros:'<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4a6 6 0 0 0-6 6c0 8-3 9-5 12h22c-2-3-5-4-5-12a6 6 0 0 0-6-6z"/><path d="M12 26a4 4 0 0 0 8 0"/></svg>'
   };
-  return '<span class="catalog-category-icon category-'+categoryClass(category)+'">'+(icons[key]||icons.outros)+'</span>';
+  return '<span class="catalog-category-icon category-'+key+'">'+(icons[key]||icons.outros)+'</span>';
 }
 
 const defaultLibraryFolders=['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros'];
