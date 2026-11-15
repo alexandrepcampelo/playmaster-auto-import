@@ -299,8 +299,8 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 #appView.sidebar-collapsed .sidebar-brand .mark{width:36px;height:36px}
 #appView.sidebar-collapsed .sidebar-collapse-toggle{transform:rotate(180deg)}
 #appView.sidebar-collapsed .sidebar-caption,
-#appView.sidebar-collapsed .nav-item b,
-#appView.sidebar-collapsed .nav-item:not(:has(>span)){display:none}
+#appView.sidebar-collapsed .nav-item b{display:none}
+#appView.sidebar-collapsed .nav-item{font-size:0}
 #appView.sidebar-collapsed .nav-item{justify-content:center;gap:0;padding:0}
 #appView.sidebar-collapsed .nav-item>span{width:100%;font-size:18px}
 #appView.sidebar-collapsed .nav-group>.nav-item{justify-content:center}
