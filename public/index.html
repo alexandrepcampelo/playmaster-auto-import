@@ -103,7 +103,7 @@
           <article class="panel directory-settings-panel">
             <div class="settings-subtabs"><button class="settings-subtab" type="button" data-settings-tab="general">Geral</button><button class="settings-subtab active" type="button" data-settings-tab="directories">Diretórios do Catálogo</button></div>
             <section id="directorySettingsPane">
-              <div class="directory-toolbar"><div><small>ESTRUTURA DA BIBLIOTECA</small><h2>Diretórios do Catálogo</h2><p>Crie pastas e subpastas, escolha ícones e controle a catalogação automática.</p></div><div class="directory-toolbar-actions"><button id="directoryNew" class="catalog-action primary" type="button"><span>＋</span> Novo</button><button id="directoryDelete" class="catalog-action danger" type="button" disabled><span>⌫</span> Excluir</button><button id="directoryRefresh" class="catalog-action" type="button"><span>↻</span> Atualizar</button></div></div>
+              <div class="directory-toolbar"><div><small>ESTRUTURA DA BIBLIOTECA</small><h2>Diretórios do Catálogo</h2><p>Crie pastas e subpastas, escolha ícones e controle a catalogação automática.</p></div><div class="directory-toolbar-actions"><button id="directoryNew" class="catalog-action primary" type="button"><span>＋</span> Nova pasta / subpasta</button><button id="directoryDelete" class="catalog-action danger" type="button" disabled><span>⌫</span> Excluir</button><button id="directoryRefresh" class="catalog-action" type="button"><span>↻</span> Atualizar</button></div></div>
               <div id="directoryTableWrap" class="directory-table-wrap"><p class="empty">Carregando diretórios...</p></div>
               <p class="directory-footnote">A organização visual do Catálogo é independente dos arquivos físicos. Excluir um cadastro não apaga nem move os áudios armazenados.</p>
             </section>
@@ -133,17 +133,17 @@
   </div>
   <div id="directoryModal" class="modal" hidden>
     <section class="modal-card directory-modal-card panel" role="dialog" aria-modal="true" aria-labelledby="directoryModalTitle">
-      <div class="modal-head"><div><small>ESTRUTURA DO CATÁLOGO</small><h2 id="directoryModalTitle">Novo diretório</h2><p>Crie uma pasta principal ou uma subpasta sem alterar os áudios existentes.</p></div><button id="directoryModalClose" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <div class="modal-head"><div><small>ESTRUTURA DO CATÁLOGO</small><h2 id="directoryModalTitle">Nova pasta</h2><p>Crie uma pasta na Biblioteca ou uma subpasta dentro da pasta principal escolhida.</p></div><button id="directoryModalClose" class="icon-button" type="button" aria-label="Fechar">×</button></div>
       <form id="directoryForm">
         <input id="directoryId" type="hidden">
         <div class="directory-form-grid">
-          <label>Cadastro<select id="directoryType"><option value="subfolder">Nova subpasta</option><option value="folder">Nova pasta principal</option></select></label>
-          <label>Nome<input id="directoryName" maxlength="80" required placeholder="Ex.: Rápidas"></label>
+          <label>Pasta<select id="directoryType"><option value="folder">Nova pasta</option><option value="subfolder">Nova subpasta</option></select></label>
+          <label><span id="directoryNameLabel">Nome da pasta</span><input id="directoryName" maxlength="80" required placeholder="Ex.: Rápidas"></label>
           <label id="directoryParentField">Pasta principal<select id="directoryParent"></select></label>
           <label>Ícone<select id="directoryIcon"><option value="folder">Pasta</option><option value="music">Música</option><option value="commercial">Comercial</option><option value="megaphone">Megafone</option><option value="link">Intercon</option><option value="wave">Trilha / onda</option><option value="headphones">Fone</option><option value="microphone">Microfone</option><option value="voice">Voice Track</option><option value="clock">Relógio</option><option value="thermometer">Temperatura</option><option value="news">Jornalismo</option><option value="star">Favorito</option><option value="archive">Arquivo</option></select><div class="directory-path-picker directory-icon-picker"><input id="directoryCustomIcon" readonly placeholder="Ícone personalizado (opcional)"><button id="directoryIconBrowse" type="button" aria-label="Buscar ícone no computador" title="Buscar ícone no computador">...</button></div><small>Escolha um ícone cadastrado ou procure uma imagem no computador/servidor.</small></label>
-          <label class="directory-path-field"><span id="directoryPathLabelTitle">Pasta base da Biblioteca no servidor</span>
+          <label class="directory-path-field"><span id="directoryPathLabelTitle">Destino na Biblioteca</span>
             <div class="directory-path-picker"><input id="directoryPath" readonly placeholder="Pasta base no servidor"><button id="directoryBrowse" type="button" aria-label="Selecionar caminho no servidor" title="Selecionar caminho no servidor">...</button></div>
-            <small id="directoryPathHint">A pasta principal será criada dentro deste local no servidor. As subpastas usarão automaticamente o caminho da pasta principal selecionada.</small>
+            <small id="directoryPathHint">O destino será registrado na Biblioteca. A criação física no iCloud Drive será executada pela integração local autorizada do Windows.</small>
           </label>
         </div>
         <div class="directory-switches"><label><input id="directoryAutoCatalog" type="checkbox" checked><span><strong>Autocatalogar</strong><small>Monitorar esta pasta e importar novos áudios automaticamente.</small></span></label><label><input id="directoryActive" type="checkbox" checked><span><strong>Ativo</strong><small>Disponibilizar esta pasta na estrutura do Catálogo.</small></span></label></div>
