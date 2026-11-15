@@ -155,7 +155,7 @@ export class AutoImporter{
       const directories=this.directoryStore?.list()||[];
       const folder=directories.find(row=>row.type==='folder'&&row.name===item.category);
       const child=folder&&item.subcategory?directories.find(row=>row.type==='subfolder'&&row.parentId===folder.id&&row.name===item.subcategory):null;
-      const destinationDir=child?.path||folder?.path||join(this.libraryDir,item.category,item.subcategory||'');
+      const destinationDir=child?.path||(folder?join(folder.path,item.subcategory||''):join(this.libraryDir,item.category,item.subcategory||''));
       await mkdir(destinationDir,{recursive:true});
       const libraryRoot=await realpath(this.libraryDir);
       const actualDestination=await realpath(destinationDir);
