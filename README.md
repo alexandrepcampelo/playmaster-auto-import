@@ -28,9 +28,9 @@ O painel utiliza sessão segura por cookie. Integrações, como o futuro agente 
 
 Coloque arquivos `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` ou `.ogg` em `storage/inbox`. Uma subpasta pode representar a categoria, por exemplo `storage/inbox/Comerciais/anuncio.mp3`.
 
-O serviço gera um ID sequencial, calcula SHA-256, preserva o original em `storage/originals`, processa a cópia em `storage/processed` e registra o resultado em `data/imports.json`.
+O serviço recebe o arquivo em `storage/inbox`, gera um ID sequencial, calcula SHA-256, preserva o original em `storage/originals` e processa uma cópia. O MP3 final é publicado na Biblioteca permanente em `storage/library/Categoria/Subcategoria`, enquanto os registros ficam em `data/imports.json`. Todos esses diretórios são volumes persistentes do VPS.
 
-As pastas de áudio disponíveis são: Músicas, Comerciais, Vinhetas, Intercons, Trilhas, Chamadas, Locução, Hora Certa, Temperatura e Outros. Jornalismo, Testemunhal e Rabicho pertencem aos seus próprios módulos e não são categorias desta biblioteca.
+As categorias e subcategorias são cadastradas pelo painel e criadas fisicamente dentro de `storage/library`. A Biblioteca do VPS não depende do iCloud nem de um computador Windows ligado.
 
 ## Processamento de áudio
 
