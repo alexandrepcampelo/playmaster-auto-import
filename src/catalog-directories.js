@@ -13,6 +13,7 @@ export class CatalogDirectoryStore{
   constructor({dataDir,inboxDir}){
     this.filePath=join(dataDir,'catalog-directories.json');
     this.inboxDir=inboxDir;
+    this.libraryBasePath='iCloud Drive/Playmaster/biblioteca';
     this.items=[];
     this.writeQueue=Promise.resolve();
   }
@@ -22,12 +23,19 @@ export class CatalogDirectoryStore{
     try{
       const saved=JSON.parse(await readFile(this.filePath,'utf8'));
       this.items=Array.isArray(saved.items)?saved.items:[];
+      let migrated=false;
+      for(const item of this.items){
+        const parent=this.items.find(row=>row.id===item.parentId);
+        const expected=parent?`${this.libraryBasePath}/${parent.name}/${item.name}`:`${this.libraryBasePath}/${item.name}`;
+        if(item.destinationPath!==expected){item.destinationPath=expected;migrated=true;}
+      }
+      if(migrated) await this.persist();
     }catch(error){
       if(error.code!=='ENOENT') throw error;
       const now=new Date().toISOString();
       this.items=defaults.map(([name,icon])=>({
         id:randomUUID(),name,type:'folder',parentId:'',icon,
-        path:join(this.inboxDir,name),autoCatalog:true,active:true,
+        path:join(this.inboxDir,name),destinationPath:`${this.libraryBasePath}/${name}`,autoCatalog:true,active:true,
         createdAt:now,updatedAt:now
       }));
       await this.persist();
