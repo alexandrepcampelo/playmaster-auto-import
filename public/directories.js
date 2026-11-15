@@ -5,6 +5,23 @@ let directoryLibraryRoot='';
 let directoryBrowserPath='/';
 let directoryBrowserMode='folders';
 let directoryEditingItem=null;
+let directoryEditorPausedForFolderImport=false;
+function isIOSFilePicker(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function openICloudFolderPicker(){
+ const picker=document.createElement('input');
+ picker.type='file';picker.multiple=true;picker.setAttribute('webkitdirectory','');picker.setAttribute('directory','');picker.accept='audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg';
+ picker.addEventListener('change',()=>{
+  const files=[...(picker.files||[])];if(!files.length)return;
+  const input=$dir('importFiles');
+  openImport();selectImportMode('folder');
+  const transfer=new DataTransfer();files.forEach(file=>transfer.items.add(file));input.files=transfer.files;
+  $dir('importTitle').textContent='Importar pasta do iCloud Drive';
+  $dir('importDescription').textContent='Os áudios encontrados na pasta escolhida serão enviados à Biblioteca. O AutoImport não mantém acesso permanente à pasta.';
+  renderUploadQueue();
+  $dir('directoryModal').hidden=true;directoryEditorPausedForFolderImport=true;
+ });
+ picker.click();
+}
 function directoryEscape(value){const node=document.createElement('span');node.textContent=String(value??'');return node.innerHTML;}
 function directoryGlyph(icon){return ({folder:'▰',music:'♫',commercial:'$',megaphone:'◖',link:'↔',wave:'≋',headphones:'♬',microphone:'♩',voice:'🎙',clock:'◷',thermometer:'♨',news:'▤',star:'★',archive:'▣'})[icon]||'▰';}
 function orderedDirectories(items){
@@ -65,6 +82,7 @@ function updateDirectoryTypeFields(){
  $dir('directoryBrowse').disabled=subfolder;
  $dir('directoryPath').value=subfolder?(catalogDirectories.find(row=>row.id===$dir('directoryParent').value)?.path||''):(directoryEditingItem?directoryBaseFor(directoryEditingItem):directoryLibraryRoot);
  $dir('directoryPathHint').textContent=subfolder?'O caminho será criado dentro da pasta principal selecionada.':'A nova pasta principal será criada dentro deste local. As subpastas usarão automaticamente o caminho da pasta principal.';
+ if(isIOSFilePicker()&&!subfolder){$dir('directoryBrowse').title='Escolher uma pasta do iCloud Drive para importar áudios';$dir('directoryPathHint').textContent='No iPad, os três pontinhos permitem escolher uma pasta do iCloud Drive e importar seus áudios. O caminho físico abaixo continua sendo o diretório do servidor.';}
 }
 function openDirectoryEditor(item=null){
  directoryEditingItem=item;
@@ -169,7 +187,7 @@ $dir('directoryRefresh').addEventListener('click',()=>loadDirectorySettings().ca
 $dir('directoryForm').addEventListener('submit',saveDirectory);
 $dir('directoryType').addEventListener('change',updateDirectoryTypeFields);
 $dir('directoryParent').addEventListener('change',updateDirectoryTypeFields);
-$dir('directoryBrowse').addEventListener('click',()=>openDirectoryBrowser('folders'));
+$dir('directoryBrowse').addEventListener('click',()=>{if(isIOSFilePicker()&&$dir('directoryType').value==='folder')openICloudFolderPicker();else openDirectoryBrowser('folders');});
 $dir('directoryIconBrowse').addEventListener('click',()=>openDirectoryBrowser('icons'));
 $dir('directoryBrowserList').addEventListener('click',event=>{const icon=event.target.closest('[data-select-icon]');if(!icon)return;$dir('directoryCustomIcon').value=icon.dataset.selectIcon;closeDirectoryBrowser();});
 $dir('directoryModalClose').addEventListener('click',closeDirectoryEditor);
@@ -190,6 +208,7 @@ $dir('directoryBrowserModal').addEventListener('click',event=>{if(event.target==
 $dir('directoryPathClose').addEventListener('click',closeDirectoryPath);
 $dir('directoryPathDone').addEventListener('click',closeDirectoryPath);
 $dir('directoryPathModal').addEventListener('click',event=>{if(event.target===event.currentTarget)closeDirectoryPath();});
+document.addEventListener('playmaster:import-closed',()=>{if(directoryEditorPausedForFolderImport){$dir('directoryModal').hidden=false;document.body.classList.add('modal-open');directoryEditorPausedForFolderImport=false;}});
 $dir('directoryPathCopy').addEventListener('click',async()=>{
  try{await navigator.clipboard.writeText(pathToCopy);$dir('directoryPathCopy').textContent='Caminho copiado';}
  catch{$dir('directoryPathValue').textContent=pathToCopy+' (selecione e copie manualmente)';}
