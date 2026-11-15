@@ -138,8 +138,8 @@ async function removeStoredFile(filePath,baseDir){
   await rm(target,{force:true});
 }
 
-async function streamProcessedAudio(req,res,item){
-  if(!item?.processedPath || item.status==='deleted') return json(res,404,{error:'Áudio processado ainda não está disponível.'});
+async function streamProcessedAudio(req,res,item,allowDeleted=false){
+  if(!item?.processedPath || (item.status==='deleted'&&!allowDeleted)) return json(res,404,{error:'Áudio processado ainda não está disponível.'});
   const info=await stat(item.processedPath);
   const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
   const headers={'content-type':extname(item.processedPath).toLowerCase()==='.wav'?'audio/wav':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
@@ -245,6 +245,11 @@ const server=http.createServer(async(req,res)=>{
       if(!requirePanelSession(req,res)) return;
       const result=await importer.reprocess(decodeURIComponent(reprocessMatch[1]),{background:true});
       return result?json(res,202,{ok:true,...result}):json(res,404,{error:'Áudio original não encontrado para reprocessamento.'});
+    }
+    const trashAudioMatch=url.pathname.match(/^\/api\/trash\/([^/]+)\/audio$/);
+    if(trashAudioMatch && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      return await streamProcessedAudio(req,res,store.findById(decodeURIComponent(trashAudioMatch[1])),true);
     }
     const restoreMatch=url.pathname.match(/^\/api\/trash\/([^/]+)\/restore$/);
     if(restoreMatch && req.method==='POST'){
