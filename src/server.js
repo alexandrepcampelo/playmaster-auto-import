@@ -169,11 +169,17 @@ async function removeStoredFile(filePath,baseDir){
   await rm(target,{force:true});
 }
 
-async function streamProcessedAudio(req,res,item,allowDeleted=false){
+async function streamProcessedAudio(req,res,item,allowDeleted=false,download=false){
   if(!item?.processedPath || (item.status==='deleted'&&!allowDeleted)) return json(res,404,{error:'Áudio processado ainda não está disponível.'});
   const info=await stat(item.processedPath);
   const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
-  const headers={'content-type':extname(item.processedPath).toLowerCase()==='.wav'?'audio/wav':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
+  const extension=extname(item.processedPath).toLowerCase();
+  const headers={'content-type':extension==='.wav'?'audio/wav':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
+  if(download){
+    const rawName=String(item.title||item.fileName||'audio-processado').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim()||'audio-processado';
+    const filename=rawName.replace(/\.[^.]+$/,'')+(extension||'.mp3');
+    headers['content-disposition']=`attachment; filename="audio-processado${extension||'.mp3'}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+  }
   if(range){
     const start=range[1]?Number(range[1]):0;
     const end=range[2]?Math.min(Number(range[2]),info.size-1):info.size-1;
@@ -398,6 +404,11 @@ const server=http.createServer(async(req,res)=>{
       const acknowledgement=validateAcknowledgement(await body(req));
       const delivery=await store.acknowledge(decodeURIComponent(libraryAckMatch[1]),acknowledgement);
       return delivery?json(res,200,{ok:true,delivery}):json(res,404,{error:'Áudio pronto não encontrado.'});
+    }
+    const downloadMatch=url.pathname.match(/^\/api\/imports\/([^/]+)\/download$/);
+    if(downloadMatch && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      return await streamProcessedAudio(req,res,store.findById(decodeURIComponent(downloadMatch[1])),false,true);
     }
     const audioMatch=url.pathname.match(/^\/api\/imports\/([^/]+)\/audio$/);
     if(audioMatch && req.method==='GET'){
