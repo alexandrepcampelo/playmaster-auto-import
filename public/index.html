@@ -81,9 +81,13 @@
         <div id="folderTree" class="folder-tree" aria-label="Categorias da biblioteca"></div><div hidden><span id="outputProfile"></span><span id="normalizationProfile"></span><span id="originals"></span><span id="processed"></span></div>
       </article>
             <article class="panel recent">
-        <div class="title"><div><small>BIBLIOTECA CENTRAL</small><h2>Arquivos processados</h2></div><span id="libraryCount" class="library-count"></span></div>
+        <div class="title"><div><small>BIBLIOTECA CENTRAL</small><h2 id="libraryFolderTitle">Músicas</h2></div><span id="libraryCount" class="library-count"></span></div>
         <div id="librarySubfolders"></div>
         <div id="items" class="items library-table-wrap"><p class="empty">Nenhum áudio recebido até o momento.</p></div>
+        <div class="library-audio-footer" aria-label="Reprodução do áudio selecionado">
+          <div class="audio-footer-meta"><span id="audioNowPlaying">Selecione uma faixa para ouvir</span><span class="audio-footer-time"><span id="audioCurrentTime">00:00</span><span> / </span><span id="audioDuration">00:00</span></span></div>
+          <input id="audioProgress" class="audio-progress" type="range" min="0" max="100" step="0.1" value="0" aria-label="Avançar ou retroceder no áudio" disabled>
+        </div>
       </article>
           </section>
         </section>
