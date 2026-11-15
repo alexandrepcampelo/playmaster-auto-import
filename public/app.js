@@ -503,13 +503,19 @@ $('#librarySearch').addEventListener('input',()=>{
   clearTimeout(librarySearchTimer);
   librarySearchTimer=setTimeout(()=>renderLibrary(),120);
 });
-$('#folderTree').addEventListener('click',event=>{
+$('#folderTree').addEventListener('click',async event=>{
   const select=event.target.closest('[data-folder-category]');
-  if(select){
-    selectedFolderCategory=select.dataset.folderCategory;
-    selectedFolderSubcategory='';
-    renderLibrary();
+  if(!select) return;
+  selectedFolderCategory=select.dataset.folderCategory;
+  selectedFolderSubcategory='';
+  if(currentLibraryView==='trash'){
+    currentLibraryView='active';
+    $('#activeTab').classList.add('active');
+    $('#trashTab').classList.remove('active');
+    await refresh();
+    return;
   }
+  renderLibrary();
 });
 $('#librarySubfolders').addEventListener('click',event=>{
   const select=event.target.closest('[data-library-subcategory]');
