@@ -173,6 +173,7 @@ let importMode='files';
 let currentLibraryView='active';
 let currentItems=[];
 let manageMode='move';
+let librarySearchOpen=false;
 const selectedLibraryIds=new Set();
 
 function selectedFiles(){
@@ -264,7 +265,7 @@ async function refresh(){
   button.disabled=true;
   try{
     const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
-    $('#librarySearch').parentElement.hidden=currentLibraryView==='trash';
+    $('#catalogSearchWrap').hidden=currentLibraryView==='trash'||!librarySearchOpen;
     const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
@@ -477,7 +478,7 @@ $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
 $('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
 $('#catalogTrash').addEventListener('click',()=>currentLibraryView==='trash'?$('#activeTab').click():$('#trashTab').click());
-$('#toggleLibrarySearch').addEventListener('click',()=>{const wrap=$('#catalogSearchWrap');wrap.hidden=!wrap.hidden;if(!wrap.hidden)$('#librarySearch').focus();else{$('#librarySearch').value='';renderLibrary();}});
+$('#toggleLibrarySearch').addEventListener('click',()=>{librarySearchOpen=!librarySearchOpen;$('#catalogSearchWrap').hidden=currentLibraryView==='trash'||!librarySearchOpen;if(librarySearchOpen)$('#librarySearch').focus();else{$('#librarySearch').value='';renderLibrary();}});
 $('#bulkDelete').addEventListener('click',async()=>{const ids=[...selectedLibraryIds];if(!ids.length||!confirm('Mover '+ids.length+' áudio(s) selecionado(s) para a Lixeira?'))return;const button=$('#bulkDelete');button.disabled=true;try{for(const id of ids)await actionRequest('/api/imports/'+encodeURIComponent(id),{method:'DELETE'});selectedLibraryIds.clear();await refresh();}catch(error){alert(error.message);await refresh();}finally{updateBulkDeleteButton();}});
 $('#items').addEventListener('change',event=>{const checkbox=event.target.closest('.library-select');if(!checkbox)return;if(checkbox.id==='selectAllLibrary'){const visible=[...$('#items').querySelectorAll('[data-select-id]')].map(input=>input.dataset.selectId);visible.forEach(id=>checkbox.checked?selectedLibraryIds.add(id):selectedLibraryIds.delete(id));}else{const id=checkbox.dataset.selectId;checkbox.checked?selectedLibraryIds.add(id):selectedLibraryIds.delete(id);}renderLibrary();});
 $('#closeImport').addEventListener('click',closeImport);
