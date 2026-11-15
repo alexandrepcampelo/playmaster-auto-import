@@ -1,5 +1,5 @@
 import { mkdir,lstat,realpath } from 'node:fs/promises';
-import { dirname,join,resolve,sep } from 'node:path';
+import { join,resolve,sep } from 'node:path';
 
 async function report(config,payload){
   try{
@@ -29,6 +29,7 @@ export async function syncLibraryDirectories(config){
     if(!response.ok) throw new Error(payload.error||`Falha HTTP ${response.status} ao consultar pastas.`);
     if(!Array.isArray(payload.items)) throw new Error('Resposta de diretórios inválida.');
     for(const item of payload.items){
+      let itemCreated=false;
       const relativePath=String(item.relativePath||'');
       const segments=relativePath.split('/');
       if(!relativePath||segments.some(part=>!part||part==='.'||part==='..'||/[\\\\<>:"|?*\\x00-\\x1f]/.test(part))) continue;
@@ -47,9 +48,9 @@ export async function syncLibraryDirectories(config){
         const actual=await realpath(candidate);
         if(actual!==rootReal&&!actual.startsWith(rootReal+sep)) throw new Error('A pasta de destino aponta para fora da Biblioteca autorizada.');
         current=actual;
-        if(wasCreated) created+=1;
+        if(wasCreated){created+=1;itemCreated=true;}
       }
-      if(segments.length&&created===0) existing+=1;
+      if(segments.length&&!itemCreated) existing+=1;
     }
     await report(config,{status:'connected',libraryRoot:rootReal,created,existing});
     return {created,existing,libraryRoot:rootReal};
