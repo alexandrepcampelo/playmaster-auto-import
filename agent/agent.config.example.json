@@ -1,7 +1,7 @@
 {
-  "apiUrl": "https://autoimport.179-198-124-131.sslip.io",
+  "apiUrl": "https://autoimport.apcgestor.com.br",
   "scanIntervalMs": 5000,
-  "libraryRoot": "C:\\\\Users\\\\SEU_USUARIO\\\\iCloudDrive\\\\Playmaster\\\\biblioteca",
+  "libraryRoot": "C:\\Users\\SEU_USUARIO\\iCloudDrive\\Playmaster\\biblioteca",
   "stateFile": "./data/agent-state.json",
   "folders": [
     { "path": "C:\\PlayMaster\\Musicas", "category": "Músicas" },
