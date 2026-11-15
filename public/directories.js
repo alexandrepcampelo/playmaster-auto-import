@@ -18,7 +18,7 @@ function openICloudFolderPicker(){
   openImport();selectImportMode('folder');
   const transfer=new DataTransfer();files.forEach(file=>transfer.items.add(file));input.files=transfer.files;
   $dir('importTitle').textContent='Importar pasta do iCloud Drive';
-  $dir('importDescription').textContent='Os áudios encontrados na pasta escolhida serão enviados à Biblioteca. O AutoImport não mantém acesso permanente à pasta.';
+  $dir('importDescription').textContent='Os áudios encontrados na pasta escolhida serão enviados ao armazenamento temporário do AutoImport. A pasta do iCloud não será vinculada como caminho permanente da Biblioteca.';
   renderUploadQueue();
   $dir('directoryModal').hidden=true;directoryEditorPausedForFolderImport=true;
  });
@@ -82,11 +82,18 @@ function directoryBaseFor(item){
 }
 function updateDirectoryTypeFields(){
  const subfolder=$dir('directoryType').value==='subfolder';
+ const ios=isIOSFilePicker();
  $dir('directoryParentField').hidden=!subfolder;
  $dir('directoryBrowse').disabled=subfolder;
  $dir('directoryPath').value=subfolder?(catalogDirectories.find(row=>row.id===$dir('directoryParent').value)?.path||''):(directoryEditingItem?directoryBaseFor(directoryEditingItem):directoryLibraryRoot);
- $dir('directoryPathHint').textContent=subfolder?'O caminho será criado dentro da pasta principal selecionada.':'A nova pasta principal será criada dentro deste local. As subpastas usarão automaticamente o caminho da pasta principal.';
- if(isIOSFilePicker()&&!subfolder){$dir('directoryBrowse').title='Escolher uma pasta do iCloud Drive para importar áudios';$dir('directoryPathHint').textContent='No iPad, os três pontinhos permitem escolher uma pasta do iCloud Drive e importar seus áudios. O caminho físico abaixo continua sendo o diretório do servidor.';}
+ $dir('directoryPathLabelTitle').textContent=ios?'Pasta base de armazenamento no servidor':'Pasta base da Biblioteca';
+ $dir('directoryBrowse').setAttribute('aria-label',ios?'Selecionar pasta do iCloud para importar':'Selecionar caminho no servidor');
+ $dir('directoryBrowse').title=ios?'Selecionar pasta do iCloud para importar áudios':'Selecionar caminho no servidor';
+ $dir('directoryPathHint').textContent=subfolder?'O caminho será criado dentro da pasta principal selecionada.':'A nova pasta principal será criada dentro deste local no servidor. As subpastas usarão automaticamente o caminho da pasta principal selecionada.';
+ if(ios&&!subfolder){
+  $dir('directoryPath').value=directoryLibraryRoot;
+  $dir('directoryPathHint').textContent='Este é o armazenamento temporário do AutoImport no servidor ('+directoryLibraryRoot+'). No iPad, o botão ... apenas seleciona uma pasta do iCloud para importar áudios; ele não altera nem vincula o caminho físico da Biblioteca. O vínculo direto com pastas do computador será disponibilizado na integração Windows.';
+ }
 }
 function openDirectoryEditor(item=null){
  directoryEditingItem=item;
