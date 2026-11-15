@@ -72,7 +72,6 @@ function categoryIcon(category){
 const defaultLibraryFolders=['Músicas','Comerciais','Vinhetas','Intercons','Trilhas','Chamadas','Locução','Hora Certa','Temperatura','Outros'];
 let selectedFolderCategory='';
 let selectedFolderSubcategory='';
-let expandedFolders={};
 
 function formatAddedDate(item){
   const value=item.createdAt||item.addedAt||item.importedAt||item.receivedAt||item.created_at||item.updatedAt;
@@ -89,17 +88,22 @@ function folderTreeTemplate(){
     selectedFolderSubcategory='';
   }
   return categories.map(category=>{
-    const subcategories=[...new Set(currentItems.filter(item=>(item.category||'Outros')===category&&item.subcategory).map(item=>item.subcategory))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-    const expanded=!!expandedFolders[category];
     const selected=selectedFolderCategory===category&&!selectedFolderSubcategory;
-    return `<div class="folder-group">
-      <div class="folder-line">
-        <button class="folder-toggle" type="button" data-folder-toggle="${escapeText(category)}" aria-label="${expanded?'Recolher':'Expandir'} ${escapeText(category)}">${subcategories.length?(expanded?'⌄':'›'):'·'}</button>
-        <button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></button>
-      </div>
-      ${expanded?subcategories.map(subcategory=>`<button class="folder-select folder-child ${selectedFolderCategory===category&&selectedFolderSubcategory===subcategory?'active':''}" type="button" data-folder-category="${escapeText(category)}" data-folder-subcategory="${escapeText(subcategory)}">${categoryIcon(category)}<span>${escapeText(subcategory)}</span></button>`).join(''):''}
-    </div>`;
+    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
   }).join('');
+}
+
+function librarySubfoldersTemplate(){
+  if(currentLibraryView==='trash') return '';
+  const subcategories=[...new Set(currentItems
+    .filter(item=>(item.category||'Outros')===selectedFolderCategory&&item.subcategory)
+    .map(item=>item.subcategory))]
+    .sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  if(!subcategories.length) return '';
+  return `<div class="library-subfolders" aria-label="Subpastas de ${escapeText(selectedFolderCategory)}">
+    <button class="subcategory-chip ${selectedFolderSubcategory?'':'active'}" type="button" data-library-subcategory="">Todas</button>
+    ${subcategories.map(subcategory=>`<button class="subcategory-chip ${selectedFolderSubcategory===subcategory?'active':''}" type="button" data-library-subcategory="${escapeText(subcategory)}">${escapeText(subcategory)}</button>`).join('')}
+  </div>`;
 }
 
 function libraryRowTemplate(item){
@@ -132,9 +136,12 @@ function libraryRowTemplate(item){
 function renderLibrary(){
   const tree=$('#folderTree');
   if(tree) tree.innerHTML=folderTreeTemplate();
+  const subfolders=$('#librarySubfolders');
+  if(subfolders) subfolders.innerHTML=librarySubfoldersTemplate();
   const container=$('#items');
   if(!container) return;
   if(currentLibraryView==='trash'){
+    if(subfolders) subfolders.innerHTML='';
     container.innerHTML=currentItems.length?currentItems.map(trashTemplate).join(''):'<p class="empty">A Lixeira está vazia.</p>';
     return;
   }
@@ -466,19 +473,18 @@ $('#librarySearch').addEventListener('input',()=>{
   librarySearchTimer=setTimeout(()=>renderLibrary(),120);
 });
 $('#folderTree').addEventListener('click',event=>{
-  const toggle=event.target.closest('[data-folder-toggle]');
-  if(toggle){
-    const category=toggle.dataset.folderToggle;
-    expandedFolders[category]=!expandedFolders[category];
-    renderLibrary();
-    return;
-  }
   const select=event.target.closest('[data-folder-category]');
   if(select){
     selectedFolderCategory=select.dataset.folderCategory;
-    selectedFolderSubcategory=select.dataset.folderSubcategory||'';
+    selectedFolderSubcategory='';
     renderLibrary();
   }
+});
+$('#librarySubfolders').addEventListener('click',event=>{
+  const select=event.target.closest('[data-library-subcategory]');
+  if(!select) return;
+  selectedFolderSubcategory=select.dataset.librarySubcategory||'';
+  renderLibrary();
 });
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
