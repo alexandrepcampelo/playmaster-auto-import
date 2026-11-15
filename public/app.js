@@ -95,6 +95,7 @@ function libraryRowTemplate(item){
     <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
   </div>`;
   return `<div class="library-row" role="row">
+    <span class="library-cell selection-cell"><input class="library-select" type="checkbox" data-select-id="${escapeText(item.id)}" aria-label="Selecionar ${escapeText(title)}" ${selectedLibraryIds.has(item.id)?"checked":""}></span>
     <span class="library-cell type-cell" title="${escapeText(category)}">${escapeText(category)}</span>
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
       ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
@@ -117,6 +118,7 @@ function renderLibrary(){
   if(!container) return;
   if(currentLibraryView==='trash'){
     container.innerHTML=currentItems.length?currentItems.map(trashTemplate).join(''):'<p class="empty">A Lixeira está vazia.</p>';
+    updateBulkDeleteButton();
     return;
   }
   const query=$('#librarySearch').value.trim().toLocaleLowerCase('pt-BR');
@@ -127,12 +129,18 @@ function renderLibrary(){
     if(!query) return true;
     return [item.title,item.fileName,item.artist,item.category,item.subcategory,item.id].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(query));
   });
-  const headers=['Tipo','Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
+  const headers=['','Tipo','Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
+  $('#libraryCount').textContent=`${filtered.length} arquivo(s)`;
   container.innerHTML=`<div class="library-table" role="table" aria-label="Arquivos da biblioteca">
-    <div class="library-table-head" role="row">${headers.map(label=>`<span role="columnheader">${label}</span>`).join('')}</div>
+    <div class="library-table-head" role="row">${headers.map((label,index)=>index===0?`<span role="columnheader"><input id="selectAllLibrary" class="library-select" type="checkbox" aria-label="Selecionar todos"></span>`:`<span role="columnheader">${label}</span>`).join('')}</div>
     ${filtered.length?filtered.map(libraryRowTemplate).join(''):'<p class="empty">Nenhum arquivo nesta pasta.</p>'}
   </div>`;
+  const selectAll=$('#selectAllLibrary');
+  if(selectAll){const visible=filtered.map(item=>item.id);selectAll.checked=visible.length>0&&visible.every(id=>selectedLibraryIds.has(id));selectAll.indeterminate=visible.some(id=>selectedLibraryIds.has(id))&&!selectAll.checked;}
+  updateBulkDeleteButton();
 }
+
+function updateBulkDeleteButton(){const button=$('#bulkDelete');if(button){button.disabled=currentLibraryView!=='active'||selectedLibraryIds.size===0;button.innerHTML='<span>⌫</span> Excluir'+(selectedLibraryIds.size?' ('+selectedLibraryIds.size+')':'');}}
 
 function itemTemplate(item){
   return libraryRowTemplate(item);
@@ -165,6 +173,8 @@ let importMode='files';
 let currentLibraryView='active';
 let currentItems=[];
 let manageMode='move';
+let librarySearchOpen=false;
+const selectedLibraryIds=new Set();
 
 function selectedFiles(){
   const files=[...$('#importFiles').files];
@@ -186,6 +196,10 @@ function renderUploadQueue(states={}){
 }
 
 function openImport(){
+  $('#importTitle').textContent='Adicionar áudios à Biblioteca';
+  $('#importDescription').textContent='Selecione os arquivos e informe a pasta de destino.';
+  $('#cdImportNote').hidden=true;
+  selectImportMode('files');
   $('#importModal').hidden=false;
   document.body.classList.add('modal-open');
 }
@@ -251,7 +265,7 @@ async function refresh(){
   button.disabled=true;
   try{
     const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
-    $('#librarySearch').parentElement.hidden=currentLibraryView==='trash';
+    $('#catalogSearchWrap').hidden=currentLibraryView==='trash'||!librarySearchOpen;
     const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
@@ -380,6 +394,7 @@ $('#items').addEventListener('click',async event=>{
     }else if(action==='trash'){
       if(!confirm(`Mover “${item.title||item.fileName}” para a Lixeira?`)) return;
       await actionRequest(`/api/imports/${encodeURIComponent(id)}`,{method:'DELETE'});
+      selectedLibraryIds.delete(id);
     }else if(action==='restore'){
       await actionRequest(`/api/trash/${encodeURIComponent(id)}/restore`,{method:'POST'});
     }else if(action==='purge'){
@@ -403,12 +418,14 @@ document.addEventListener('keydown',event=>{
 
 $('#activeTab').addEventListener('click',async()=>{
   currentLibraryView='active';
+  selectedLibraryIds.clear();
   $('#activeTab').classList.add('active');
   $('#trashTab').classList.remove('active');
   await refresh();
 });
 $('#trashTab').addEventListener('click',async()=>{
   currentLibraryView='trash';
+  selectedLibraryIds.clear();
   $('#trashTab').classList.add('active');
   $('#activeTab').classList.remove('active');
   await refresh();
@@ -459,6 +476,11 @@ $('#folderTree').addEventListener('click',event=>{
 });
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
+$('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
+$('#catalogTrash').addEventListener('click',()=>currentLibraryView==='trash'?$('#activeTab').click():$('#trashTab').click());
+$('#toggleLibrarySearch').addEventListener('click',()=>{librarySearchOpen=!librarySearchOpen;$('#catalogSearchWrap').hidden=currentLibraryView==='trash'||!librarySearchOpen;if(librarySearchOpen)$('#librarySearch').focus();else{$('#librarySearch').value='';renderLibrary();}});
+$('#bulkDelete').addEventListener('click',async()=>{const ids=[...selectedLibraryIds];if(!ids.length||!confirm('Mover '+ids.length+' áudio(s) selecionado(s) para a Lixeira?'))return;const button=$('#bulkDelete');button.disabled=true;try{for(const id of ids)await actionRequest('/api/imports/'+encodeURIComponent(id),{method:'DELETE'});selectedLibraryIds.clear();await refresh();}catch(error){alert(error.message);await refresh();}finally{updateBulkDeleteButton();}});
+$('#items').addEventListener('change',event=>{const checkbox=event.target.closest('.library-select');if(!checkbox)return;if(checkbox.id==='selectAllLibrary'){const visible=[...$('#items').querySelectorAll('[data-select-id]')].map(input=>input.dataset.selectId);visible.forEach(id=>checkbox.checked?selectedLibraryIds.add(id):selectedLibraryIds.delete(id));}else{const id=checkbox.dataset.selectId;checkbox.checked?selectedLibraryIds.add(id):selectedLibraryIds.delete(id);}renderLibrary();});
 $('#closeImport').addEventListener('click',closeImport);
 $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
@@ -562,7 +584,7 @@ function navigateToView(view){
   $('#appView').classList.remove('sidebar-open');
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>navigateToView(button.dataset.view)));
-$('#openImportSidebar').addEventListener('click',()=>{navigateToView('catalog');openImport();});
+
 $('#sidebarToggle').addEventListener('click',()=>$('#appView').classList.toggle('sidebar-open'));
 
 
