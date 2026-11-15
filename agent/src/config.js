@@ -15,6 +15,7 @@ export async function loadConfig(){
   return {
     apiUrl:String(input.apiUrl||'').replace(/\/+$/,''),
     apiToken,
+    libraryRoot:String(input.libraryRoot||'').trim()?resolve(input.libraryRoot):'',
     scanIntervalMs:positiveInteger(input.scanIntervalMs,5000),
     stateFile:resolve(input.stateFile||'./data/agent-state.json'),
     folders:input.folders.map(folder=>({path:resolve(folder.path),category:String(folder.category||'Outros')}))
