@@ -90,8 +90,8 @@ function updateDirectoryTypeFields(){
  $dir('directoryBrowse').hidden=true;
  $dir('directoryBrowse').disabled=true;
  const logicalParent=subfolder?(parent?.destinationPath||logicalRoot+'/'+(parent?.name||'')):logicalRoot;
- const editingSame=directoryEditingItem&&directoryEditingItem.type===(subfolder?'subfolder':'folder')&&$dir('directoryName').value.trim()===directoryEditingItem.name;
- $dir('directoryPath').value=editingSame?directoryEditingItem.destinationPath:logicalParent;
+ const name=$dir('directoryName').value.trim();
+ $dir('directoryPath').value=logicalParent+(name?'/'+name:'');
  $dir('directoryPathHint').textContent=(subfolder?'A nova subpasta será criada dentro da pasta principal selecionada.':'A nova pasta será criada diretamente dentro da biblioteca.')+' A criação física no iCloud Drive depende da integração local autorizada do Windows; este cadastro registra o destino sem mover ou apagar áudios.';
 }
 function openDirectoryEditor(item=null){
