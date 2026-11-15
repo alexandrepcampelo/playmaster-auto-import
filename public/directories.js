@@ -65,8 +65,8 @@ function refreshDirectorySelects(){
  const parent=$dir('directoryParent');
  if(parent){
   const previous=parent.value;
-  parent.innerHTML=roots.map(item=>`<option value="${directoryEscape(item.id)}">${directoryEscape(item.name)}</option>`).join('');
-  if(roots.some(item=>item.id===previous))parent.value=previous;
+  parent.innerHTML=roots.map(item=>`<option value="${directoryEscape(item.id)}">${directoryEscape(item.name)}</option>`).join('')+'<option value="__new_parent__">＋ Nova pasta...</option>';
+  if(roots.some(item=>item.id===previous))parent.value=previous;else if(previous==='__new_parent__')parent.value=previous;
  }
 }
 async function loadDirectorySettings(){
@@ -83,13 +83,17 @@ function directoryBaseFor(item){
 function updateDirectoryTypeFields(){
  const subfolder=$dir('directoryType').value==='subfolder';
  const parent=catalogDirectories.find(row=>row.id===$dir('directoryParent').value);
+ const creatingParent=subfolder&&$dir('directoryParent').value==='__new_parent__';
+ $dir('directoryNewParentField').hidden=!creatingParent;
+ $dir('directoryNewParentName').required=creatingParent;
  const logicalRoot='iCloud Drive/Playmaster/biblioteca';
  $dir('directoryParentField').hidden=!subfolder;
  $dir('directoryNameLabel').textContent=subfolder?'Nome da subpasta':'Nome da pasta';
  $dir('directoryPathLabelTitle').textContent='Destino na Biblioteca';
  $dir('directoryBrowse').hidden=true;
  $dir('directoryBrowse').disabled=true;
- const logicalParent=subfolder?(parent?.destinationPath||logicalRoot+'/'+(parent?.name||'')):logicalRoot;
+ const newParentName=$dir('directoryNewParentName').value.trim();
+ const logicalParent=subfolder?(creatingParent?logicalRoot+'/'+(newParentName||'Nova pasta'):(parent?.destinationPath||logicalRoot+'/'+(parent?.name||''))):logicalRoot;
  const name=$dir('directoryName').value.trim();
  $dir('directoryPath').value=logicalParent+(name?'/'+name:'');
  $dir('directoryPathHint').textContent=(subfolder?'A nova subpasta será criada dentro da pasta principal selecionada.':'A nova pasta será criada diretamente dentro da biblioteca.')+' A criação física no iCloud Drive depende da integração local autorizada do Windows; este cadastro registra o destino sem mover ou apagar áudios.';
@@ -124,16 +128,34 @@ async function saveDirectory(event){
  const button=$dir('directorySave');button.disabled=true;$dir('directoryError').textContent='';
  const id=$dir('directoryId').value;
  const type=$dir('directoryType').value;
+ const creatingParent=type==='subfolder'&&$dir('directoryParent').value==='__new_parent__';
  const payload={
   name:$dir('directoryName').value.trim(),type,
-  parentId:type==='subfolder'?$dir('directoryParent').value:'',
+  parentId:type==='subfolder'&&!creatingParent?$dir('directoryParent').value:'',
   icon:$dir('directoryIcon').value,
   customIcon:$dir('directoryCustomIcon').value.trim(),
-  basePath:type==='subfolder'?(catalogDirectories.find(row=>row.id===$dir('directoryParent').value)?.path||directoryLibraryRoot):(directoryEditingItem?directoryBaseFor(directoryEditingItem):directoryLibraryRoot),
+  basePath:type==='subfolder'&&!creatingParent?(catalogDirectories.find(row=>row.id===$dir('directoryParent').value)?.path||directoryLibraryRoot):(directoryEditingItem?directoryBaseFor(directoryEditingItem):directoryLibraryRoot),
   autoCatalog:$dir('directoryAutoCatalog').checked,
   active:$dir('directoryActive').checked
  };
  try{
+  if(creatingParent){
+   const parentName=$dir('directoryNewParentName').value.trim();
+   if(!parentName)throw new Error('Informe o nome da nova pasta principal.');
+   const existing=catalogDirectories.find(item=>item.type==='folder'&&item.name.toLocaleLowerCase('pt-BR')===parentName.toLocaleLowerCase('pt-BR'));
+   let parentItem=existing;
+   if(!parentItem){
+    const parentResult=await actionRequest('/api/catalog-directories',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:parentName,type:'folder',parentId:'',icon:'folder',customIcon:'',basePath:directoryLibraryRoot,autoCatalog:true,active:true})});
+    parentItem=parentResult.item;
+    catalogDirectories=[...catalogDirectories,parentItem];
+   }
+   refreshDirectorySelects();
+   $dir('directoryParent').value=parentItem.id;
+   $dir('directoryNewParentName').value='';
+   updateDirectoryTypeFields();
+   payload.parentId=parentItem.id;
+   payload.basePath=parentItem.path;
+  }
   const result=await actionRequest(id?`/api/catalog-directories/${encodeURIComponent(id)}`:'/api/catalog-directories',{method:id?'PUT':'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
   if(id)selectedDirectoryIds.delete(id);
   catalogDirectories=id?catalogDirectories.map(item=>item.id===id?result.item:item):[...catalogDirectories,result.item];
