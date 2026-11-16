@@ -16,7 +16,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
-if [[ ! -x "$DOCKER_BIN" || ! -x "$NGINX_BIN" ]]; then
+if [[ "$DOCKER_BIN" != "/usr/bin/docker" || "$NGINX_BIN" != "/usr/sbin/nginx" ]]; then
   echo "Docker ou Nginx não encontrado; nenhuma configuração foi aplicada." >&2
   exit 1
 fi
