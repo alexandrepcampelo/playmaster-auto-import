@@ -494,6 +494,32 @@ const server=http.createServer(async(req,res)=>{
         return json(res,422,{error:error.message,item:failed});
       }
     }
+    const stagingEditMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/edit$/);
+    if(stagingEditMatch && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(stagingEditMatch[1]);
+      const item=store.findById(id);
+      if(!item || item.source!=='manual-staging' || item.status!=='staged_ready') return json(res,409,{error:'Prepare o áudio antes de abrir o editor.'});
+      const input=await body(req);
+      const cueIn=Number(input.cueIn);
+      const cueOut=Number(input.cueOut);
+      if(!Number.isFinite(cueIn)||!Number.isFinite(cueOut)||cueIn<0||cueOut<=cueIn||cueOut>item.duration+0.05) return json(res,400,{error:'Informe um início e fim válidos dentro da duração do áudio.'});
+      const editId=id+'-edit-'+Date.now();
+      let editedPath='';
+      try{
+        const analysis=await analyzeAudio(item.originalPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        editedPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id:editId,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness,cueIn,cueOut});
+        const output=await analyzeAudio(editedPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        if(output.sampleRate!==44100||output.sourceFormat!=='MP3'||output.channels!==2||output.bitRate<300000) throw new Error('A edição gerada não atende ao padrão técnico do catálogo.');
+        const previousPath=item.processedPath;
+        const updated=await store.update(id,{processedPath:editedPath,duration:output.duration,cueIn,cueOut,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',outputLufs:output.inputLufs,truePeak:output.inputTruePeak,processingStage:'staged_ready',status:'staged_ready',error:''});
+        if(previousPath&&resolve(previousPath).startsWith(resolve(config.tempDir)+sep)&&resolve(previousPath)!==resolve(editedPath)) await rm(previousPath,{force:true});
+        return json(res,200,{ok:true,item:updated});
+      }catch(error){
+        if(editedPath&&resolve(editedPath).startsWith(resolve(config.tempDir)+sep)) await rm(editedPath,{force:true});
+        return json(res,422,{error:error.message});
+      }
+    }
     const stagingPublishMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/publish$/);
     if(stagingPublishMatch && req.method==='POST'){
       if(!requirePanelSession(req,res)) return;
