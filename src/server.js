@@ -510,13 +510,15 @@ const server=http.createServer(async(req,res)=>{
       const processedPath=join(actualDestination,id+'.mp3');
       const publishingPath=join(actualDestination,'.'+id+'.publishing.mp3');
       try{
+        await store.update(id,{status:'processing',processingStage:'publishing',error:''});
         await copyFile(item.processedPath,publishingPath);
+        await store.update(id,{processingStage:'verifying'});
         const finalInfo=await analyzeAudio(publishingPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
         if(finalInfo.sampleRate!==44100 || finalInfo.sourceFormat!=='MP3' || finalInfo.channels!==2 || finalInfo.bitRate<300000) throw new Error('A verificação final do arquivo publicado falhou.');
         await rename(publishingPath,processedPath);
         const ready=await store.update(id,{processedPath,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',processingStage:'ready',status:'ready',error:''});
         return json(res,200,{ok:true,published:true,item:ready});
-      }catch(error){await rm(publishingPath,{force:true});throw error;}
+      }catch(error){await rm(publishingPath,{force:true});await store.update(id,{status:'staged_ready',processingStage:'staged_ready',error:error.message});throw error;}
     }
     if(url.pathname==='/api/voice-track' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
