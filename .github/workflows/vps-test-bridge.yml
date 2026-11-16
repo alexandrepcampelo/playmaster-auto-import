@@ -39,6 +39,12 @@ jobs:
           printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Verify SSH key fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh-keygen -lf ~/.ssh/id_ed25519
+
       - name: Run fixed VPS operation
         shell: bash
         env:
