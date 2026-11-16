@@ -494,6 +494,13 @@ const server=http.createServer(async(req,res)=>{
         return json(res,422,{error:error.message,item:failed});
       }
     }
+    const stagingOriginalMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/original$/);
+    if(stagingOriginalMatch && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      const item=store.findById(decodeURIComponent(stagingOriginalMatch[1]));
+      if(!item||item.source!=='manual-staging'||!item.originalPath||item.status==='deleted') return json(res,404,{error:'Áudio original não encontrado.'});
+      return await streamProcessedAudio(req,res,{...item,processedPath:item.originalPath});
+    }
     const stagingEditMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/edit$/);
     if(stagingEditMatch && req.method==='POST'){
       if(!requirePanelSession(req,res)) return;
