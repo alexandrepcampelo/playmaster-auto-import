@@ -457,3 +457,13 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .directory-custom-icon{display:block;width:24px;height:24px;object-fit:contain}.directory-icon-picker{margin-top:7px}.directory-icon-picker input{cursor:default}.directory-icon-file{background:rgba(24,116,154,.08)}.directory-browser-entry.directory-icon-file span:first-child{font-size:17px}
 
 .download-audio-button{display:inline-grid;place-items:center;flex:0 0 23px;width:23px;height:23px;border:1px solid rgba(43,178,224,.38);border-radius:5px;background:#0b2b42;color:#73d8f2;text-decoration:none;font-size:16px;font-weight:800;line-height:1}.download-audio-button:hover{border-color:#36d0f2;background:#10415b;color:#e9faff}.library-name-wrap{min-width:0}
+
+/* Fluxo separado: preparação temporária e publicação explícita */
+#openImport.catalog-action.primary{background:#123b32;border-color:#26785b;color:#dfffee}
+#openImport.catalog-action.primary:hover:not(:disabled){background:#18513f;border-color:#35a878}
+.catalog-action.import-catalog-button{background:#e98a18;border-color:#f5a33d;color:#fff;font-weight:800}
+.catalog-action.import-catalog-button:hover:not(:disabled){background:#f29a28;border-color:#ffc36d}
+.catalog-action.import-catalog-button:disabled{opacity:.55;cursor:not-allowed}
+.audio-editor-button[data-action]{width:auto;min-width:64px;padding:0 7px;color:#a9e7f8;font-size:9px;font-weight:800}
+.audio-editor-button[data-action="publish"]{border-color:#e99a34;background:#55350f;color:#ffd69b}
+.audio-editor-button[data-action="prepare"]{border-color:#2a9d70;background:#0c3d2c;color:#9cf0c5}
