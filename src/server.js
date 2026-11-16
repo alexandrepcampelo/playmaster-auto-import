@@ -2,7 +2,7 @@ import http from 'node:http';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { createReadStream } from 'node:fs';
-import { mkdir,readFile,readdir,realpath,rm,stat } from 'node:fs/promises';
+import { access,copyFile,mkdir,readFile,readdir,realpath,rename,rm,stat } from 'node:fs/promises';
 import { dirname,extname,join,normalize,relative,resolve,sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
