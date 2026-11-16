@@ -486,7 +486,7 @@ const server=http.createServer(async(req,res)=>{
         outputPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness});
         const output=await analyzeAudio(outputPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
         if(output.sampleRate!==44100 || output.sourceFormat!=='MP3' || output.channels!==2 || output.bitRate<300000) throw new Error('O áudio convertido não atende ao perfil MP3 320 kbps CBR, 44,1 kHz e estéreo.');
-        const updated=await store.update(id,{duration:output.duration,title:analysis.title||displayTitle({},item.fileName),artist:analysis.artist,album:analysis.album,year:analysis.year,sourceFormat:analysis.sourceFormat,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',inputLufs:analysis.inputLufs,outputLufs:output.inputLufs,truePeak:output.inputTruePeak,cueIn:analysis.cueIn,cueOut:analysis.cueOut,processedPath:outputPath,processingStage:'staged_ready',status:'staged_ready',error:''});
+        const updated=await store.update(id,{duration:output.duration,sourceDuration:analysis.duration,title:analysis.title||displayTitle({},item.fileName),artist:analysis.artist,album:analysis.album,year:analysis.year,sourceFormat:analysis.sourceFormat,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',inputLufs:analysis.inputLufs,outputLufs:output.inputLufs,truePeak:output.inputTruePeak,cueIn:analysis.cueIn,cueOut:analysis.cueOut,processedPath:outputPath,processingStage:'staged_ready',status:'staged_ready',error:''});
         return json(res,200,{ok:true,item:updated,verified:{sampleRate:output.sampleRate,bitRate:output.bitRate,channels:output.channels}});
       }catch(error){
         if(outputPath && resolve(outputPath).startsWith(resolve(config.tempDir)+sep)) await rm(outputPath,{force:true});
@@ -503,7 +503,7 @@ const server=http.createServer(async(req,res)=>{
       const input=await body(req);
       const cueIn=Number(input.cueIn);
       const cueOut=Number(input.cueOut);
-      if(!Number.isFinite(cueIn)||!Number.isFinite(cueOut)||cueIn<0||cueOut<=cueIn||cueOut>item.duration+0.05) return json(res,400,{error:'Informe um início e fim válidos dentro da duração do áudio.'});
+      if(!Number.isFinite(cueIn)||!Number.isFinite(cueOut)||cueIn<0||cueOut<=cueIn||cueOut>(item.sourceDuration||item.duration)+0.05) return json(res,400,{error:'Informe um início e fim válidos dentro da duração do áudio.'});
       const editId=id+'-edit-'+Date.now();
       let editedPath='';
       try{
@@ -512,7 +512,7 @@ const server=http.createServer(async(req,res)=>{
         const output=await analyzeAudio(editedPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
         if(output.sampleRate!==44100||output.sourceFormat!=='MP3'||output.channels!==2||output.bitRate<300000) throw new Error('A edição gerada não atende ao padrão técnico do catálogo.');
         const previousPath=item.processedPath;
-        const updated=await store.update(id,{processedPath:editedPath,duration:output.duration,cueIn,cueOut,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',outputLufs:output.inputLufs,truePeak:output.inputTruePeak,processingStage:'staged_ready',status:'staged_ready',error:''});
+        const updated=await store.update(id,{processedPath:editedPath,duration:output.duration,sourceDuration:analysis.duration,cueIn,cueOut,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',outputLufs:output.inputLufs,truePeak:output.inputTruePeak,processingStage:'staged_ready',status:'staged_ready',error:''});
         if(previousPath&&resolve(previousPath).startsWith(resolve(config.tempDir)+sep)&&resolve(previousPath)!==resolve(editedPath)) await rm(previousPath,{force:true});
         return json(res,200,{ok:true,item:updated});
       }catch(error){
