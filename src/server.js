@@ -480,6 +480,7 @@ const server=http.createServer(async(req,res)=>{
       const item=store.findById(id);
       if(!item || item.source!=='manual-staging' || item.status==='deleted') return json(res,404,{error:'Áudio em preparação não encontrado.'});
       if(item.status==='staged_ready') return json(res,200,{ok:true,item});
+      let outputPath='';
       try{
         const analysis=await analyzeAudio(item.originalPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
         const outputPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness});
@@ -488,6 +489,7 @@ const server=http.createServer(async(req,res)=>{
         const updated=await store.update(id,{duration:output.duration,title:analysis.title||displayTitle({},item.fileName),artist:analysis.artist,album:analysis.album,year:analysis.year,sourceFormat:analysis.sourceFormat,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',inputLufs:analysis.inputLufs,outputLufs:output.inputLufs,truePeak:output.inputTruePeak,cueIn:analysis.cueIn,cueOut:analysis.cueOut,processedPath:outputPath,processingStage:'staged_ready',status:'staged_ready',error:''});
         return json(res,200,{ok:true,item:updated,verified:{sampleRate:output.sampleRate,bitRate:output.bitRate,channels:output.channels}});
       }catch(error){
+        if(outputPath && resolve(outputPath).startsWith(resolve(config.tempDir)+sep)) await rm(outputPath,{force:true});
         const failed=await store.update(id,{status:'error',processingStage:'error',error:error.message});
         return json(res,422,{error:error.message,item:failed});
       }
