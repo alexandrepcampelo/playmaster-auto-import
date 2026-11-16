@@ -558,7 +558,7 @@ $('#openImport').addEventListener('click',openImport);
 $('#importToCatalog').addEventListener('click',async()=>{
   const button=$('#importToCatalog');
   const pending=currentItems.filter(item=>item.source==='manual-staging'&&item.status==='staged_ready'&&(!selectedFolderCategory||item.category===selectedFolderCategory)&&(!selectedFolderSubcategory||(item.subcategory||'')===selectedFolderSubcategory));
-  if(!pending.length){alert('Não há áudios preparados nesta pasta. Use Preparar primeiro.');return;}
+  if(!pending.length){button.textContent='Importar para o catálogo';button.style.background='';alert('Não há áudios preparados nesta pasta. Use Preparar primeiro.');return;}
   button.disabled=true;
   let completed=0;
   const original=button.textContent;
