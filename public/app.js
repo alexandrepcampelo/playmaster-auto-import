@@ -425,8 +425,8 @@ function openStagingEditor(item){
   $('#stagingEditId').value=item.id;
   $('#stagingEditTitle').textContent=item.title||item.fileName;
   $('#stagingEditCueIn').value=Number(item.cueIn)||0;
-  $('#stagingEditCueOut').value=Number(item.cueOut)||Number(item.duration)||0;
-  $('#stagingEditDuration').textContent=formatDuration(item.duration,true);
+  $('#stagingEditCueOut').value=Number(item.cueOut)||Number(item.sourceDuration)||Number(item.duration)||0;
+  $('#stagingEditDuration').textContent=formatDuration(item.sourceDuration||item.duration,true);
   $('#stagingEditError').textContent='';
   $('#stagingEditPlayer').src=`/api/imports/${encodeURIComponent(item.id)}/audio`;
   $('#stagingEditModal').hidden=false;
