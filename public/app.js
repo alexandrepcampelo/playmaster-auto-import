@@ -140,7 +140,7 @@ function libraryRowTemplate(item){
     <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
     <span class="library-cell duration-cell">${escapeText(duration)}</span>
     <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
-    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" ${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)? `data-action="prepare" data-id="${escapeText(item.id)}" title="Preparar e validar áudio"`:item.source==='manual-staging'&&item.status==='staged_ready'? `data-action="publish" data-id="${escapeText(item.id)}" title="Importar para o catálogo"`:'disabled title="Editor de áudio — em preparação"'} aria-label="Preparar, editar ou publicar áudio">${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)?'Preparar':item.source==='manual-staging'&&item.status==='staged_ready'?'Publicar':'≋'}</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" ${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)? `data-action="prepare" data-id="${escapeText(item.id)}" title="Preparar e validar áudio"`:item.source==='manual-staging'&&item.status==='staged_ready'? `data-action="edit-audio" data-id="${escapeText(item.id)}" title="Editar cortes do áudio"`:'disabled title="Editor de áudio — em preparação"'} aria-label="Preparar, editar ou publicar áudio">${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)?'Preparar':item.source==='manual-staging'&&item.status==='staged_ready'?'Editar':'≋'}</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button" type="button" data-action="edit" data-id="${escapeText(item.id)}" title="Editar informações" aria-label="Editar informações">✎</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Mover para a Lixeira" aria-label="Mover para a Lixeira"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></span>
   </div>`;
@@ -420,6 +420,41 @@ function openManage(item,mode){
   document.body.classList.add('modal-open');
 }
 
+function openStagingEditor(item){
+  if(!item||item.source!=='manual-staging'||item.status!=='staged_ready') return;
+  $('#stagingEditId').value=item.id;
+  $('#stagingEditTitle').textContent=item.title||item.fileName;
+  $('#stagingEditCueIn').value=Number(item.cueIn)||0;
+  $('#stagingEditCueOut').value=Number(item.cueOut)||Number(item.duration)||0;
+  $('#stagingEditDuration').textContent=formatDuration(item.duration,true);
+  $('#stagingEditError').textContent='';
+  $('#stagingEditPlayer').src=`/api/imports/${encodeURIComponent(item.id)}/audio`;
+  $('#stagingEditModal').hidden=false;
+  document.body.classList.add('modal-open');
+}
+function closeStagingEditor(){
+  $('#stagingEditPlayer').pause();
+  $('#stagingEditPlayer').removeAttribute('src');
+  $('#stagingEditModal').hidden=true;
+  document.body.classList.remove('modal-open');
+}
+$('#closeStagingEdit').addEventListener('click',closeStagingEditor);
+$('#cancelStagingEdit').addEventListener('click',closeStagingEditor);
+$('#stagingEditModal').addEventListener('click',event=>{if(event.target===event.currentTarget)closeStagingEditor();});
+$('#stagingEditForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=$('#saveStagingEdit');
+  button.disabled=true;
+  $('#stagingEditError').textContent='';
+  try{
+    const id=$('#stagingEditId').value;
+    await actionRequest(`/api/staging/${encodeURIComponent(id)}/edit`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cueIn:Number($('#stagingEditCueIn').value),cueOut:Number($('#stagingEditCueOut').value)})});
+    closeStagingEditor();
+    await refresh();
+  }catch(error){$('#stagingEditError').textContent=error.message;}
+  finally{button.disabled=false;}
+});
+
 function closeManage(){
   $('#manageModal').hidden=true;
   document.body.classList.remove('modal-open');
@@ -458,6 +493,7 @@ $('#items').addEventListener('click',async event=>{
   closeItemMenus();
   try{
     if(action==='move' || action==='edit') return openManage(item,action);
+    if(action==='edit-audio') return openStagingEditor(item);
     if(action==='prepare'){
       actionButton.disabled=true;
       await actionRequest(`/api/staging/${encodeURIComponent(id)}/prepare`,{method:'POST'});
