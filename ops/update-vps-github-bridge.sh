@@ -6,7 +6,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
-BRIDGE_COMMIT="e03dd7d40ba49b295ba0ecefa2e9694660d61f32"
+BRIDGE_COMMIT="77222b8171880689ab23bfe8a95ff18d3de65386"
 BRIDGE_URL="https://raw.githubusercontent.com/alexandrepcampelo/playmaster-auto-import/${BRIDGE_COMMIT}/ops/playmaster-github-bridge"
 TMP_FILE="$(mktemp)"
 SUDOERS_TMP="$(mktemp)"
