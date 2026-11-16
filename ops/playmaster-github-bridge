@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Restricted SSH forced command. Only fixed, read-only operations are accepted.
-case "\${SSH_ORIGINAL_COMMAND:-}" in
+case "${SSH_ORIGINAL_COMMAND:-}" in
   action:test-status)
     sudo -n /usr/bin/docker ps --filter name=playmaster-auto-import-test --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
     ;;
