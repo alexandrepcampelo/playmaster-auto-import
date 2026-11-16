@@ -114,6 +114,21 @@
         </section>
       </main>
     </div>
+  <div id="stagingEditModal" class="modal" hidden>
+    <section class="modal-card staging-editor-card panel" role="dialog" aria-modal="true" aria-labelledby="stagingEditHeading">
+      <div class="modal-head"><div><small>PREPARAÇÃO DO ÁUDIO</small><h2 id="stagingEditHeading">Editor de áudio</h2><p id="stagingEditTitle">Ajuste os pontos de início e fim antes da publicação.</p></div><button id="closeStagingEdit" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <form id="stagingEditForm">
+        <audio id="stagingEditPlayer" controls preload="metadata"></audio>
+        <div class="staging-trim-grid">
+          <label>Início do corte (segundos)<input id="stagingEditCueIn" type="number" min="0" step="0.01" required></label>
+          <label>Fim do corte (segundos)<input id="stagingEditCueOut" type="number" min="0" step="0.01" required></label>
+        </div>
+        <p class="staging-editor-hint">Duração atual: <strong id="stagingEditDuration">00:00</strong>. O sistema reaplica a normalização e valida o MP3 após o corte.</p>
+        <p id="stagingEditError" class="manage-error" role="alert"></p>
+        <div class="modal-actions"><button id="cancelStagingEdit" type="button" class="secondary">Cancelar</button><button id="saveStagingEdit" type="submit" class="primary">Salvar edição</button></div>
+      </form>
+    </section>
+  </div>
       <div id="importModal" class="modal" hidden>
     <section class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="importTitle">
       <div class="modal-head"><div><small>IMPORTAÇÃO MANUAL</small><h2 id="importTitle">Adicionar áudios à Biblioteca</h2><p id="importDescription">Os arquivos serão adicionados à área de preparação. Eles só entram na Biblioteca definitiva depois de preparados e publicados no catálogo.</p><p id="cdImportNote" class="cd-import-note" hidden>Selecione faixas de áudio do CD disponibilizadas pelo computador. O navegador não extrai CDs diretamente.</p></div><button id="closeImport" class="icon-button" type="button" aria-label="Fechar">×</button></div>
