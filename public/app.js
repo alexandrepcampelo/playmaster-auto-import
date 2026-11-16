@@ -569,7 +569,20 @@ $('#importToCatalog').addEventListener('click',async()=>{
   paint(0);
   try{
     for(const item of pending){
-      await actionRequest(`/api/staging/${encodeURIComponent(item.id)}/publish`,{method:'POST'});
+      let finished=false;
+      const publication=actionRequest(`/api/staging/${encodeURIComponent(item.id)}/publish`,{method:'POST'}).then(value=>{finished=true;return value;},error=>{finished=true;throw error;});
+      let stagePercent=0;
+      while(!finished){
+        await new Promise(resolve=>setTimeout(resolve,300));
+        const response=await fetch('/api/imports?limit=500');
+        if(response.ok){
+          const data=await response.json();
+          const live=data.items.find(row=>row.id===item.id);
+          stagePercent=live?.status==='ready'?100:live?.processingStage==='verifying'?82:live?.processingStage==='publishing'?48:8;
+          paint(Math.round((completed+stagePercent/100)/pending.length*100));
+        }
+      }
+      await publication;
       completed+=1;
       paint(Math.round(completed/pending.length*100));
     }
