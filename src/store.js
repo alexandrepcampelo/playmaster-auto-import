@@ -174,7 +174,7 @@ export class ImportStore{
   async restore(id){
     const item=this.findById(id);
     if(!item || item.status!=='deleted') return null;
-    const restoredStatus=['ready','error','received','processing'].includes(item.deletedFromStatus)?item.deletedFromStatus:(item.processedPath?'ready':'error');
+    const restoredStatus=['ready','error','received','processing','staged_ready'].includes(item.deletedFromStatus)?item.deletedFromStatus:(item.processedPath?'ready':'error');
     item.status=restoredStatus;
     item.processingStage=restoredStatus==='ready'?'ready':item.processingStage;
     item.deletedAt='';
