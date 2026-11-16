@@ -3,6 +3,10 @@ name: Deploy PlayMaster Auto Import
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'ops/**'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/vps-test-bridge.yml'
   workflow_dispatch:
 
 concurrency:
