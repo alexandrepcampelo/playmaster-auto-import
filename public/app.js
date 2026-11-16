@@ -428,7 +428,7 @@ function openStagingEditor(item){
   $('#stagingEditCueOut').value=Number(item.cueOut)||Number(item.sourceDuration)||Number(item.duration)||0;
   $('#stagingEditDuration').textContent=formatDuration(item.sourceDuration||item.duration,true);
   $('#stagingEditError').textContent='';
-  $('#stagingEditPlayer').src=`/api/imports/${encodeURIComponent(item.id)}/audio`;
+  $('#stagingEditPlayer').src=`/api/staging/${encodeURIComponent(item.id)}/original`;
   $('#stagingEditModal').hidden=false;
   document.body.classList.add('modal-open');
 }
