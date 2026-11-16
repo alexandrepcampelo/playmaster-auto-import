@@ -96,6 +96,7 @@ export class ImportStore{
       checksum:String(input.checksum||''),
       size:Number(input.size)||0,
       duration:Number(input.duration)||0,
+      sourceDuration:Number(input.sourceDuration)||0,
       title:String(input.title||''),
       artist:String(input.artist||''),
       album:String(input.album||''),
