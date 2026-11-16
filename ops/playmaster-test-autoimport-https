@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOMAIN="test-autoimport.apcgestor.com.br"
+CONF="/etc/nginx/sites-available/test-autoimport"
+ENABLED="/etc/nginx/sites-enabled/test-autoimport"
+CERT="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+KEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+BACKUP="${CONF}.before-https.$(date +%Y%m%d%H%M%S)"
+TMP="$(mktemp /etc/nginx/sites-available/.test-autoimport.XXXXXX)"
+trap 'rm -f "$TMP"' EXIT
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "This operation must run as root." >&2
+  exit 1
+fi
+
+[[ -f "$CONF" ]] || { echo "TEST_NGINX_CONFIG_MISSING"; exit 1; }
+[[ -L "$ENABLED" ]] || { echo "TEST_NGINX_ENABLED_LINK_MISSING"; exit 1; }
+[[ "$(readlink -f "$ENABLED")" == "$CONF" ]] || { echo "TEST_NGINX_ENABLED_LINK_MISMATCH"; exit 1; }
+[[ -s "$CERT" ]] || { echo "TEST_TLS_CERTIFICATE_MISSING"; exit 1; }
+[[ -s "$KEY" ]] || { echo "TEST_TLS_PRIVATE_KEY_MISSING"; exit 1; }
+
+LOCAL_STATUS="$(curl --noproxy '*' --connect-timeout 5 --max-time 10 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3602/)"
+if [[ ! "$LOCAL_STATUS" =~ ^2[0-9][0-9]$ ]]; then
+  echo "TEST_APP_PREFLIGHT_FAILED: HTTP $LOCAL_STATUS" >&2
+  exit 1
+fi
+
+cp -a "$CONF" "$BACKUP"
+
+cat > "$TMP" <<'NGINX'
+server {
+    listen 80;
+    listen [::]:80;
+    server_name test-autoimport.apcgestor.com.br;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/acme;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name test-autoimport.apcgestor.com.br;
+
+    ssl_certificate /etc/letsencrypt/live/test-autoimport.apcgestor.com.br/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/test-autoimport.apcgestor.com.br/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://127.0.0.1:3602;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 300;
+    }
+}
+NGINX
+
+install -o root -g root -m 644 "$TMP" "$CONF"
+
+rollback() {
+  cp -a "$BACKUP" "$CONF"
+  /usr/sbin/nginx -t
+  /bin/systemctl reload nginx
+  echo "HTTPS_CONFIG_ROLLED_BACK"
+}
+
+if ! /usr/sbin/nginx -t; then
+  rollback
+  exit 1
+fi
+
+if ! /bin/systemctl reload nginx; then
+  rollback
+  exit 1
+fi
+
+if ! HTTPS_STATUS="$(curl --noproxy '*' --connect-timeout 5 --max-time 15 -sS --resolve "$DOMAIN:443:127.0.0.1" -o /dev/null -w '%{http_code}' "https://$DOMAIN/")"; then
+  echo "HTTPS_LOCAL_TLS_CHECK_FAILED; restoring previous Nginx config" >&2
+  rollback
+  exit 1
+fi
+
+if [[ ! "$HTTPS_STATUS" =~ ^2[0-9][0-9]$ ]]; then
+  echo "HTTPS_LOCAL_APP_CHECK_FAILED: HTTP $HTTPS_STATUS; restoring previous Nginx config" >&2
+  rollback
+  exit 1
+fi
+
+echo "NGINX_CONFIG_TEST: passed"
+echo "NGINX_RELOAD: completed"
+echo "LOCAL_HTTP_PREFLIGHT: $LOCAL_STATUS"
+echo "LOCAL_HTTPS_CHECK: $HTTPS_STATUS (TLS certificate verified)"
+echo "BACKUP_CREATED: $BACKUP"
+echo "SCOPE: test-autoimport.apcgestor.com.br only"
