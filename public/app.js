@@ -18,11 +18,11 @@ function escapeText(value){
 }
 
 function statusLabel(status){
-  return ({received:'Recebido',processing:'Processando',ready:'Pronto',error:'Erro',deleted:'Na Lixeira'})[status]||status;
+  return ({received:'Em preparação',processing:'Processando',staged_ready:'Pronto para publicar',ready:'Publicado',error:'Erro',deleted:'Na Lixeira'})[status]||status;
 }
 
 function stageLabel(item){
-  return ({preserving:'Preservando',analyzing:'Analisando',converting:'Normalizando',verifying:'Verificando',ready:'Pronto',error:'Com erro'})[item.processingStage]||statusLabel(item.status);
+  return ({preserving:'Preservando',analyzing:'Analisando',converting:'Normalizando',verifying:'Verificando',staged_ready:'Pronto para publicar',ready:'Publicado',error:'Com erro'})[item.processingStage]||statusLabel(item.status);
 }
 
 function stageProgress(item){
@@ -123,6 +123,7 @@ function libraryRowTemplate(item){
   const category=item.category||'Outros';
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
   const canPlay=item.status==='ready'&&item.processedPath;
+  const stagingLabel=item.source==='manual-staging'?`<span class="staging-state ${item.status==='staged_ready'?'ready':item.status==='error'?'error':'pending'}">${item.status==='staged_ready'?'Pronto para publicar':item.status==='error'?'Falha na preparação':'Em preparação'}</span>`:'';
   const menu=`<div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
     ${item.source==='manual-staging'&&item.status!=='staged_ready'?`<button type="button" data-action="prepare" data-id="${escapeText(item.id)}"><span>≋</span>Preparar e validar áudio</button>`:''}
     ${item.source==='manual-staging'&&item.status==='staged_ready'? `<button type="button" data-action="publish" data-id="${escapeText(item.id)}"><span>↑</span>Importar para o catálogo</button>`:''}
@@ -132,7 +133,7 @@ function libraryRowTemplate(item){
   return `<div class="library-row" role="row">
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
       ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" data-title="${escapeText(title)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
-      <span class="library-name-text">${escapeText(title)}</span>
+      <span class="library-name-text">${escapeText(title)}</span>${stagingLabel}
       ${canPlay?`<a class="download-audio-button" href="/api/imports/${encodeURIComponent(item.id)}/download" aria-label="Salvar ${escapeText(title)} no Arquivos" title="Salvar áudio processado">↓</a>`:''}
       <button class="item-menu-btn table-menu-button" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Mais opções de ${escapeText(title)}" aria-expanded="false">•••</button>
     </span>${menu}</span>
@@ -554,6 +555,35 @@ $('#librarySubfolders').addEventListener('click',event=>{
 });
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
+$('#importToCatalog').addEventListener('click',async()=>{
+  const button=$('#importToCatalog');
+  const pending=currentItems.filter(item=>item.source==='manual-staging'&&item.status==='staged_ready'&&(!selectedFolderCategory||item.category===selectedFolderCategory)&&(!selectedFolderSubcategory||(item.subcategory||'')===selectedFolderSubcategory));
+  if(!pending.length){alert('Não há áudios preparados nesta pasta. Use Preparar primeiro.');return;}
+  button.disabled=true;
+  let completed=0;
+  const original=button.textContent;
+  const paint=percent=>{
+    button.style.background=`linear-gradient(90deg,#ef4444 ${percent}%,#e98a18 ${percent}%)`;
+    button.textContent=`${percent}%`;
+  };
+  paint(0);
+  try{
+    for(const item of pending){
+      await actionRequest(`/api/staging/${encodeURIComponent(item.id)}/publish`,{method:'POST'});
+      completed+=1;
+      paint(Math.round(completed/pending.length*100));
+    }
+    button.textContent='100% · Publicado';
+    await refresh();
+  }catch(error){
+    alert(error.message);
+    await refresh();
+  }finally{
+    button.disabled=false;
+    if(completed!==pending.length){button.textContent=original;button.style.background='';}
+  }
+});
+
 $('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
 $('#catalogTrash').addEventListener('click',()=>currentLibraryView==='trash'?$('#activeTab').click():$('#trashTab').click());
 $('#closeImport').addEventListener('click',closeImport);
