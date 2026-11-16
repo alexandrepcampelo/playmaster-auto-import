@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Restricted SSH forced command. Only fixed, read-only operations are accepted.
+# Restricted SSH forced command. Only fixed, scoped operations are accepted.
 case "${SSH_ORIGINAL_COMMAND:-}" in
   action:test-status)
     sudo -n /usr/bin/docker ps --filter name=playmaster-auto-import-test --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
@@ -43,6 +43,12 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
         openssl x509 -in "$CERT" -noout -subject -issuer -dates 2>&1 || true
       fi
     fi
+    ;;
+  action:test-domain-enable-https)
+    sudo -n /usr/local/sbin/playmaster-test-autoimport-https
+    ;;
+  action:test-domain-https-check)
+    curl --connect-timeout 5 --max-time 15 -sS -o /dev/null -w 'HTTPS %{http_code}\n' https://test-autoimport.apcgestor.com.br/
     ;;
   *)
     echo "Operation not allowed" >&2
