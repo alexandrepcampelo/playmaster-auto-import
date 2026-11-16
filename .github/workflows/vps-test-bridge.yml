@@ -12,6 +12,8 @@ on:
           - nginx-config-test
           - test-http-check
           - test-domain-inspect
+          - test-domain-enable-https
+          - test-domain-https-check
 
 permissions:
   contents: read
@@ -57,7 +59,7 @@ jobs:
           test -n "$VPS_HOST"
           test -n "$VPS_USER"
           case "$ACTION" in
-            test-status|nginx-config-test|test-http-check|test-domain-inspect) ;;
+            test-status|nginx-config-test|test-http-check|test-domain-inspect|test-domain-enable-https|test-domain-https-check) ;;
             *) echo "Operation not allowed"; exit 2 ;;
           esac
           ssh -i ~/.ssh/id_ed25519 \
