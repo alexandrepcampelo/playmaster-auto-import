@@ -183,7 +183,8 @@ async function streamProcessedAudio(req,res,item,allowDeleted=false,download=fal
   const info=await stat(item.processedPath);
   const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
   const extension=extname(item.processedPath).toLowerCase();
-  const headers={'content-type':extension==='.wav'?'audio/wav':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
+  const audioContentTypes={'.mp3':'audio/mpeg','.wav':'audio/wav','.flac':'audio/flac','.aac':'audio/aac','.m4a':'audio/mp4','.ogg':'audio/ogg'};
+  const headers={'content-type':audioContentTypes[extension]||'application/octet-stream','accept-ranges':'bytes','cache-control':'private, no-store'};
   if(download){
     const rawName=String(item.title||item.fileName||'audio-processado').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim()||'audio-processado';
     const filename=rawName.replace(/\.[^.]+$/,'')+(extension||'.mp3');
