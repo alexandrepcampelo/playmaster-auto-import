@@ -124,8 +124,10 @@ function libraryRowTemplate(item){
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
   const canPlay=item.status==='ready'&&item.processedPath;
   const menu=`<div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
+    ${item.source==='manual-staging'&&item.status!=='staged_ready'?`<button type="button" data-action="prepare" data-id="${escapeText(item.id)}"><span>≋</span>Preparar e validar áudio</button>`:''}
+    ${item.source==='manual-staging'&&item.status==='staged_ready'? `<button type="button" data-action="publish" data-id="${escapeText(item.id)}"><span>↑</span>Importar para o catálogo</button>`:''}
     <button type="button" data-action="move" data-id="${escapeText(item.id)}"><span>↪</span>Mover para outra pasta</button>
-    <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
+    ${item.source==='manual-staging'?'':`<button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>`}
   </div>`;
   return `<div class="library-row" role="row">
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
@@ -137,7 +139,7 @@ function libraryRowTemplate(item){
     <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
     <span class="library-cell duration-cell">${escapeText(duration)}</span>
     <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
-    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" disabled title="Editor de áudio — em preparação" aria-label="Editor de áudio">≋</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" ${item.source==='manual-staging'&&item.status!=='staged_ready'? `data-action="prepare" data-id="${escapeText(item.id)}" title="Preparar e validar áudio"`:item.source==='manual-staging'&&item.status==='staged_ready'? `data-action="publish" data-id="${escapeText(item.id)}" title="Importar para o catálogo"`:'disabled title="Editor de áudio — em preparação"'} aria-label="Preparar, editar ou publicar áudio">${item.source==='manual-staging'&&item.status!=='staged_ready'?'Preparar':item.source==='manual-staging'&&item.status==='staged_ready'?'Publicar':'≋'}</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button" type="button" data-action="edit" data-id="${escapeText(item.id)}" title="Editar informações" aria-label="Editar informações">✎</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Mover para a Lixeira" aria-label="Mover para a Lixeira"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></span>
   </div>`;
@@ -455,6 +457,13 @@ $('#items').addEventListener('click',async event=>{
   closeItemMenus();
   try{
     if(action==='move' || action==='edit') return openManage(item,action);
+    if(action==='prepare'){
+      actionButton.disabled=true;
+      await actionRequest(`/api/staging/${encodeURIComponent(id)}/prepare`,{method:'POST'});
+    }else if(action==='publish'){
+      actionButton.disabled=true;
+      await actionRequest(`/api/staging/${encodeURIComponent(id)}/publish`,{method:'POST'});
+    }
     if(action==='reprocess'){
       if(!confirm(`Reprocessar “${item.title||item.fileName}” usando o arquivo original?`)) return;
       await actionRequest(`/api/imports/${encodeURIComponent(id)}/reprocess`,{method:'POST'});
@@ -587,7 +596,7 @@ $('#importForm').addEventListener('submit',async event=>{
         states[index]={label:`Enviando ${progress}%`,progress,type:'sending'};
         renderUploadQueue(states);
       });
-      states[index]={label:result.reclassified?`Registro existente atualizado para ${result.item?.category||$('#importCategory').value}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.duplicate?`Já constava na Biblioteca · ${result.item?.category||'Outros'}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.queued?`Recebido · ${result.item?.id||'ID gerado'}`:`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
+      states[index]={label:result.staged?`Adicionado à preparação · ${result.item?.id||''}`:result.reclassified?`Registro existente atualizado para ${result.item?.category||$('#importCategory').value}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.duplicate?`Já constava na Biblioteca · ${result.item?.category||'Outros'}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.queued?`Recebido · ${result.item?.id||'ID gerado'}`:`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
     }catch(error){
       states[index]={label:error.message,progress:100,type:'error'};
     }
