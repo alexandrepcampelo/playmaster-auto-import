@@ -4,13 +4,13 @@ set -euo pipefail
 # Restricted SSH forced command. Only fixed, read-only operations are accepted.
 case "${SSH_ORIGINAL_COMMAND:-}" in
   action:test-status)
-    sudo -n /usr/bin/docker ps --filter name=playmaster-auto-import-test --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+    sudo -n /usr/bin/docker ps --filter name=playmaster-auto-import-test --format 'table {{.Names}}\\t{{.Status}}\\t{{.Ports}}'
     ;;
   action:nginx-config-test)
     sudo -n /usr/sbin/nginx -t
     ;;
   action:test-http-check)
-    curl --connect-timeout 5 --max-time 10 -sS -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:3602/
+    curl --connect-timeout 5 --max-time 10 -sS -o /dev/null -w 'HTTP %{http_code}\\n' http://127.0.0.1:3602/
     ;;
   action:test-domain-inspect)
     CONFIG=/etc/nginx/sites-enabled/test-autoimport
@@ -18,18 +18,25 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
       echo "NGINX_CONFIG: missing ($CONFIG)"
       exit 0
     fi
-    if [[ ! -r "$CONFIG" ]]; then
-      echo "NGINX_CONFIG: present but not readable"
+    CONFIG_CONTENT="$(sudo -n /usr/bin/cat /etc/nginx/sites-enabled/test-autoimport)"
+    if [[ -z "$CONFIG_CONTENT" ]]; then
+      echo "NGINX_CONFIG: empty or unreadable"
       exit 0
     fi
-    echo "NGINX_CONFIG: present and readable"
-    grep -E '^[[:space:]]*(listen|server_name|ssl_certificate|proxy_pass|return|root)[[:space:]]' "$CONFIG" \
-      | sed -E 's#(ssl_certificate_key[[:space:]]+).*#\1[redacted];#' || true
-    CERT=$(awk '$1 == "ssl_certificate" {gsub(/;/, "", $2); print $2; exit}' "$CONFIG")
+    echo "NGINX_CONFIG: present and readable (read-only inspection)"
+    printf '%s\\n' "$CONFIG_CONTENT" | awk '
+      /^[[:space:]]*(listen|server_name|ssl_certificate|proxy_pass|return|root)[[:space:]]/ {
+        line=$0
+        sub(/^[[:space:]]*/, "", line)
+        print line
+      }'
+    CERT="$(printf '%s\\n' "$CONFIG_CONTENT" | awk '$1 == "ssl_certificate" {gsub(/;/, "", $2); print $2; exit}')"
     if [[ -z "$CERT" ]]; then
       echo "TLS_CERTIFICATE: no ssl_certificate directive"
+    elif [[ "$CERT" != /etc/letsencrypt/live/*/fullchain.pem ]]; then
+      echo "TLS_CERTIFICATE: path outside approved Let's Encrypt fullchain location; not inspected"
     elif [[ ! -r "$CERT" ]]; then
-      echo "TLS_CERTIFICATE: configured path is missing or unreadable"
+      echo "TLS_CERTIFICATE: configured fullchain is missing or unreadable"
     else
       echo "TLS_CERTIFICATE: readable"
       if command -v openssl >/dev/null 2>&1; then
