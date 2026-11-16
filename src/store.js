@@ -78,7 +78,7 @@ export class ImportStore{
       result.total+=1;
       result[item.status]=(result[item.status]||0)+1;
       return result;
-    },{total:0,received:0,processing:0,ready:0,error:0,deleted:0});
+    },{total:0,received:0,processing:0,staged_ready:0,ready:0,error:0,deleted:0});
   }
 
   async create(input){
