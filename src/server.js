@@ -483,7 +483,7 @@ const server=http.createServer(async(req,res)=>{
       let outputPath='';
       try{
         const analysis=await analyzeAudio(item.originalPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
-        const outputPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness});
+        outputPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness});
         const output=await analyzeAudio(outputPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
         if(output.sampleRate!==44100 || output.sourceFormat!=='MP3' || output.channels!==2 || output.bitRate<300000) throw new Error('O áudio convertido não atende ao perfil MP3 320 kbps CBR, 44,1 kHz e estéreo.');
         const updated=await store.update(id,{duration:output.duration,title:analysis.title||displayTitle({},item.fileName),artist:analysis.artist,album:analysis.album,year:analysis.year,sourceFormat:analysis.sourceFormat,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',inputLufs:analysis.inputLufs,outputLufs:output.inputLufs,truePeak:output.inputTruePeak,cueIn:analysis.cueIn,cueOut:analysis.cueOut,processedPath:outputPath,processingStage:'staged_ready',status:'staged_ready',error:''});
