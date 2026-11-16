@@ -122,10 +122,10 @@ function libraryRowTemplate(item){
   const duration=formatDuration(item.duration);
   const category=item.category||'Outros';
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
-  const canPlay=item.status==='ready'&&item.processedPath;
-  const stagingLabel=item.source==='manual-staging'?`<span class="staging-state ${item.status==='staged_ready'?'ready':item.status==='error'?'error':'pending'}">${item.status==='staged_ready'?'Pronto para publicar':item.status==='error'?'Falha na preparação':'Em preparação'}</span>`:'';
+  const canPlay=['ready','staged_ready'].includes(item.status)&&item.processedPath;
+  const stagingLabel=item.source==='manual-staging'&&item.status!=='ready'?`<span class="staging-state ${item.status==='staged_ready'?'ready':item.status==='error'?'error':'pending'}">${item.status==='staged_ready'?'Pronto para publicar':item.status==='error'?'Falha na preparação':'Em preparação'}</span>`:'';
   const menu=`<div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
-    ${item.source==='manual-staging'&&item.status!=='staged_ready'?`<button type="button" data-action="prepare" data-id="${escapeText(item.id)}"><span>≋</span>Preparar e validar áudio</button>`:''}
+    ${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)?`<button type="button" data-action="prepare" data-id="${escapeText(item.id)}"><span>≋</span>Preparar e validar áudio</button>`:''}
     ${item.source==='manual-staging'&&item.status==='staged_ready'? `<button type="button" data-action="publish" data-id="${escapeText(item.id)}"><span>↑</span>Importar para o catálogo</button>`:''}
     <button type="button" data-action="move" data-id="${escapeText(item.id)}"><span>↪</span>Mover para outra pasta</button>
     ${item.source==='manual-staging'?'':`<button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>`}
@@ -140,7 +140,7 @@ function libraryRowTemplate(item){
     <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
     <span class="library-cell duration-cell">${escapeText(duration)}</span>
     <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
-    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" ${item.source==='manual-staging'&&item.status!=='staged_ready'? `data-action="prepare" data-id="${escapeText(item.id)}" title="Preparar e validar áudio"`:item.source==='manual-staging'&&item.status==='staged_ready'? `data-action="publish" data-id="${escapeText(item.id)}" title="Importar para o catálogo"`:'disabled title="Editor de áudio — em preparação"'} aria-label="Preparar, editar ou publicar áudio">${item.source==='manual-staging'&&item.status!=='staged_ready'?'Preparar':item.source==='manual-staging'&&item.status==='staged_ready'?'Publicar':'≋'}</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" ${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)? `data-action="prepare" data-id="${escapeText(item.id)}" title="Preparar e validar áudio"`:item.source==='manual-staging'&&item.status==='staged_ready'? `data-action="publish" data-id="${escapeText(item.id)}" title="Importar para o catálogo"`:'disabled title="Editor de áudio — em preparação"'} aria-label="Preparar, editar ou publicar áudio">${item.source==='manual-staging'&&item.status!=='staged_ready'?'Preparar':item.source==='manual-staging'&&item.status==='staged_ready'?'Publicar':'≋'}</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button" type="button" data-action="edit" data-id="${escapeText(item.id)}" title="Editar informações" aria-label="Editar informações">✎</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Mover para a Lixeira" aria-label="Mover para a Lixeira"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></span>
   </div>`;
