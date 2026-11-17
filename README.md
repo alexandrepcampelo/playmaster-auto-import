@@ -127,10 +127,46 @@ requisição depende do plano da zona: Free/Pro 100 MB, Business 200 MB e Enterp
 até 5 GB (sujeito à configuração da conta). Portanto, o limite de 1 GB do backend não
 significa que uploads de 1 GB funcionarão pelo Worker.
 
-Antes de liberar importação de arquivos grandes, escolher e testar uma solução:
-- upload direto para uma origem fora do proxy Cloudflare com autorização temporária e
-  CORS restrito ao domínio do Air; ou
-- upload multipart/resumível para object storage (por exemplo, R2), seguido de
-  confirmação e processamento no backend.
+#### Caminho recomendado para upload grande
 
-Não reduzir silenciosamente o limite de upload do produto sem decisão funcional.
+A primeira opção a implementar será o envio direto do navegador para o endereço HTTPS
+próprio do serviço Render, sem atravessar o Worker Cloudflare. Isso evita adicionar
+object storage ou custo de R2 nesta etapa e preserva o progresso de envio já exibido
+pelo painel.
+
+O fluxo deverá ser:
+
+1. O navegador solicita ao backend, pela rota same-origin do Air, uma autorização de
+   upload vinculada à sessão administrativa.
+2. O backend emite um ticket assinado, de uso único, com validade curta e vinculado ao
+   nome, categoria, subcategoria, tamanho máximo e tipo de envio (áudio ou ZIP).
+3. O navegador envia o arquivo por HTTPS diretamente ao hostname `.onrender.com`,
+   usando o ticket temporário. O corpo não passa pelo Worker nem pelo proxy do domínio.
+4. O backend valida ticket, validade, uso único, origem permitida, metadados e tamanho;
+   então transmite o corpo para os handlers existentes `receiveUpload` ou
+   `receiveArchive`, sem carregar o arquivo inteiro na memória.
+5. O backend invalida o ticket e retorna o mesmo resultado funcional esperado pelo
+   painel. A interface mantém a barra de progresso do XMLHttpRequest.
+
+Requisitos de segurança obrigatórios:
+
+- Nunca enviar `AUTO_IMPORT_API_TOKEN` nem a senha administrativa ao navegador.
+- Não aceitar tickets reutilizados, expirados ou emitidos para outro arquivo/categoria.
+- Permitir CORS somente para a origem HTTPS final do PlayMaster Air, com preflight
+  explícito para os métodos e cabeçalhos necessários.
+- Rejeitar origens não autorizadas e validar o tamanho real durante o streaming,
+  mesmo quando o navegador informa um tamanho declarado.
+- Não publicar nem habilitar esse fluxo antes de testar autenticação, cancelamento,
+  falha de rede, ZIP, duplicidade e persistência.
+
+A documentação pública consultada do Render não estabelece, nas páginas analisadas,
+um limite máximo de corpo que possamos assumir como garantido. Portanto, após criar o
+serviço, será necessário testar uploads progressivos (incluindo acima de 100 MB) no
+hostname Render direto e confirmar o limite operacional antes de prometer 1 GB.
+
+Se o Render não suportar o tamanho necessário ou se for exigida retomada após
+interrupção, a segunda etapa será upload multipart/resumível para object storage,
+seguido de confirmação e processamento no backend.
+
+Não reduzir silenciosamente o limite de upload do produto. O limite configurado de
+1 GB só poderá ser anunciado depois de validado no caminho real de produção.
