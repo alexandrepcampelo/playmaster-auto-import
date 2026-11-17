@@ -263,7 +263,10 @@ $dir('directoryTableWrap').addEventListener('click',event=>{
  if(edit){const item=catalogDirectories.find(row=>row.id===edit.dataset.editDirectory);if(item)openDirectoryEditor(item);return;}
  const open=event.target.closest('[data-open-path]');if(open)openDirectoryPath(open.dataset.openPath);
 });
-document.querySelector('.sidebar-nav [data-view="settings"]')?.addEventListener('click',()=>{\n const view=document.getElementById('settingsView');if(view){document.querySelectorAll('.page-view').forEach(page=>page.hidden=page!==view);document.querySelectorAll('.nav-item[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view==='settings'));const title=document.getElementById('pageTitle');if(title)title.textContent='Configurações';}\n loadDirectorySettings().catch(error=>{$dir('directoryTableWrap').innerHTML=`<p class="empty">${directoryEscape(error.message)}</p>`;});\n});
+document.querySelector('.sidebar-nav [data-view="settings"]')?.addEventListener('click',()=>{
+ const view=document.getElementById('settingsView');if(view){document.querySelectorAll('.page-view').forEach(page=>page.hidden=page!==view);document.querySelectorAll('.nav-item[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view==='settings'));const title=document.getElementById('pageTitle');if(title)title.textContent='Configurações';}
+ loadDirectorySettings().catch(error=>{$dir('directoryTableWrap').innerHTML=`<p class="empty">${directoryEscape(error.message)}</p>`;});
+});
 document.querySelectorAll('[data-settings-tab]').forEach(button=>button.addEventListener('click',()=>{
  const directories=button.dataset.settingsTab==='directories';
  document.querySelectorAll('[data-settings-tab]').forEach(tab=>tab.classList.toggle('active',tab===button));
