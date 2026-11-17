@@ -86,10 +86,8 @@ function directoryIconTemplate(directory){
   return `<span class="catalog-directory-icon icon-${escapeText(directory.icon||'folder')}">${glyphs[directory.icon]||'▰'}</span>`;
 }
 function folderTreeTemplate(){
-  const configured=catalogDirectories.filter(item=>item.type==='folder'&&item.active);
-  const configuredAll=catalogDirectories.filter(item=>item.type==='folder');
-  const unmanaged=currentItems.map(item=>item.category||'Outros').filter(category=>!configuredAll.some(item=>item.name===category));
-  const categories=[...new Set([...configured.map(item=>item.name),...unmanaged])];
+  const imported=currentItems.map(item=>item.category||'Outros');
+  const categories=[...new Set([...defaultLibraryFolders,...imported])];
   if(!selectedFolderCategory) selectedFolderCategory=categories[0]||'Músicas';
   if(!categories.includes(selectedFolderCategory)){
     selectedFolderCategory=categories[0]||'Músicas';
@@ -97,8 +95,7 @@ function folderTreeTemplate(){
   }
   return categories.map(category=>{
     const selected=selectedFolderCategory===category&&!selectedFolderSubcategory;
-    const directory=configured.find(item=>item.name===category);
-    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${directory?directoryIconTemplate(directory):categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
+    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
   }).join('');
 }
 
@@ -165,12 +162,13 @@ function renderLibrary(){
   const query=$('#librarySearch').value.trim().toLocaleLowerCase('pt-BR');
   const filtered=currentItems.filter(item=>{
     const category=item.category||'Outros';
-    if(selectedFolderCategory&&category!==selectedFolderCategory) return false;
-    if(selectedFolderSubcategory&&(item.subcategory||'')!==selectedFolderSubcategory) return false;
+    const subcategory=String(item.subcategory||'');
+    if(!query&&selectedFolderCategory&&category!==selectedFolderCategory) return false;
+    if(!query&&selectedFolderSubcategory&&subcategory!==selectedFolderSubcategory&&!subcategory.startsWith(selectedFolderSubcategory+'/')) return false;
     if(!query) return true;
     return [item.title,item.fileName,item.artist,item.category,item.subcategory,item.id].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(query));
   });
-  const folderTitle=selectedFolderSubcategory||selectedFolderCategory||'Biblioteca';
+  const folderTitle=query?'Resultados da busca':selectedFolderSubcategory||selectedFolderCategory||'Biblioteca';
   $('#libraryFolderTitle').textContent=folderTitle;
   const headers=['Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
   $('#libraryCount').textContent=`${filtered.length} arquivo(s)`;
