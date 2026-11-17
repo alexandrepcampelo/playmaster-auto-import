@@ -3,6 +3,7 @@ import { discoverFiles } from './files.js';
 import { AgentState } from './state.js';
 import { uploadFile } from './client.js';
 import { syncLibraryDirectories } from './directories.js';
+import { copyIntoLocalLibrary } from './local-library.js';
 
 const config=await loadConfig();
 const state=new AgentState(config.stateFile);
@@ -13,7 +14,7 @@ async function cycle(){
   if(running) return;
   running=true;
   try{
-    if(config.libraryRoot){
+    if(config.mode==='remote-upload'&&config.libraryRoot){
       try{
         const sync=await syncLibraryDirectories(config);
         if(sync&&(sync.created||sync.existing)) console.log(`Biblioteca local sincronizada: ${sync.created} criada(s), ${sync.existing} já existente(s).`);
@@ -28,22 +29,26 @@ async function cycle(){
       state.markUploading(pending.path);
       await state.persist();
       try{
-        const result=await uploadFile(config,pending);
-        state.markSent(pending.path,result);
-        console.log(`${result.duplicate?'Duplicado':'Enviado'}: ${pending.fileName}${result.item?.id?` (${result.item.id})`:''}`);
+        if(config.mode==='local-library'){
+          const result=await copyIntoLocalLibrary(config,pending);
+          state.markCopied(pending.path,result);
+          console.log(`${result.duplicate?'Já existente':'Copiado para a biblioteca'}: ${pending.fileName} → ${result.destination}`);
+        }else{
+          const result=await uploadFile(config,pending);
+          state.markSent(pending.path,result);
+          console.log(`${result.duplicate?'Duplicado':'Enviado'}: ${pending.fileName}${result.item?.id?` (${result.item.id})`:''}`);
+        }
       }catch(error){
         state.markError(pending.path,error);
-        console.error(`Falha ao enviar ${pending.fileName}: ${error.message}`);
+        console.error(`Falha ao processar ${pending.fileName}: ${error.message}`);
       }
       await state.persist();
     }
   }catch(error){
     console.error(`Falha no ciclo do agente: ${error.message}`);
-  }finally{
-    running=false;
-  }
+  }finally{running=false;}
 }
 
-console.log(`PlayMaster Agent ativo. Monitorando ${config.folders.length} pasta(s).`);
+console.log(`PlayMaster Agent ativo em modo ${config.mode}. Monitorando ${config.folders.length} pasta(s).`);
 await cycle();
 setInterval(()=>void cycle(),config.scanIntervalMs);
