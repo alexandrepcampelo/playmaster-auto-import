@@ -141,7 +141,7 @@
         <label class="category-label">Pasta / categoria<select id="importCategory">
           <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
         </select></label>
-        <label id="importSubcategoryField" class="category-label" hidden>Subpasta<input id="importSubcategory" maxlength="80" placeholder="Ex.: Voz Masculina"><small>Destino opcional dentro da pasta selecionada.</small></label>
+        <label id="importSubcategoryField" class="category-label" hidden>Subpasta<select id="importSubcategory"><option value="">Sem subpasta</option></select><small>Selecione uma subpasta já cadastrada dentro da pasta principal.</small></label>
         <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong id="dropTitle">Escolher arquivos de áudio</strong><small id="dropHint">MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small><em id="dropNote">Os originais serão preservados</em></label>
         <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
         <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Adicionar áudio</button></div>
