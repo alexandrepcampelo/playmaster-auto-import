@@ -78,7 +78,7 @@ async function loadDirectorySettings(){
  const result=await actionRequest('/api/catalog-directories');
  catalogDirectories=result.items||[];
  directoryLibraryRoot=result.libraryBasePath||result.inboxDir||'';
- refreshDirectorySelects();renderDirectorySettings();renderLibrary();
+ refreshDirectorySelects();if(typeof refreshImportSubcategoryOptions==='function')refreshImportSubcategoryOptions();renderDirectorySettings();renderLibrary();
  await refreshAgentSyncStatus();
 }
 function directoryBaseFor(item){
