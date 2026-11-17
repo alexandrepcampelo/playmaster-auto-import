@@ -35,6 +35,7 @@ export function safeSubcategory(value){
 export function safeRelativeAudioPath(value,fileName){
   const raw=String(value||'').replaceAll('\\','/');
   if(!raw) return '';
+  if(raw.startsWith('/')) throw new Error('O caminho relativo do áudio não é permitido.');
   const parts=raw.split('/').filter(Boolean);
   if(parts.length<2) return '';
   if(parts.some(part=>part==='.'||part==='..'||/^[a-z]:$/i.test(part))) throw new Error('O caminho relativo do áudio não é permitido.');
