@@ -1,0 +1,49 @@
+name: PlayMaster Auto Import - validação Render
+
+on:
+  push:
+    branches: [cloudflare-backend-render]
+  pull_request:
+    branches: [cloudflare-backend-render]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - name: Verificar sintaxe
+        run: npm run check
+      - name: Executar testes
+        run: npm test
+      - name: Validar blueprint Render
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path("render.yaml").read_text()
+          required = [
+              "runtime: docker",
+              "region: ohio",
+              "plan: 1c-2g",
+              "healthCheckPath: /api/health",
+              "autoDeployTrigger: off",
+              "mountPath: /app/persistent",
+              "DATA_DIR",
+              "LIBRARY_DIR",
+              "AUTO_IMPORT_ADMIN_PASSWORD",
+              "AUTO_IMPORT_API_TOKEN",
+              "AUTO_IMPORT_SESSION_SECRET",
+          ]
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit("Blueprint incompleto: " + ", ".join(missing))
+          print("Blueprint Render contém os itens essenciais.")
+          PY
