@@ -99,13 +99,15 @@ function measuredLoudnorm(settings,measurement){
   return `${base}:measured_I=${measurement.input_i}:measured_LRA=${measurement.input_lra}:measured_TP=${measurement.input_tp}:measured_thresh=${measurement.input_thresh}:offset=${measurement.target_offset}:linear=true:print_format=summary`;
 }
 
-export async function convertAudio(inputPath,{processedDir,id,targetLufs,truePeakDb,measurement}){
+export async function convertAudio(inputPath,{processedDir,id,targetLufs,truePeakDb,measurement,cueIn=0,cueOut=null}){
   await mkdir(processedDir,{recursive:true});
   const destination=join(processedDir,`${id}.mp3`);
   const temporary=join(processedDir,`.processing-${randomUUID()}.mp3`);
   try{
+    const seek=Number.isFinite(Number(cueIn))&&Number(cueIn)>0?['-ss',String(Number(cueIn))]:[];
+    const end=Number.isFinite(Number(cueOut))&&Number(cueOut)>Number(cueIn)?['-t',String(Number(cueOut)-Number(cueIn))]:[];
     await run('ffmpeg',[
-      '-y','-hide_banner','-nostdin','-i',inputPath,'-map_metadata','0','-vn',
+      '-y','-hide_banner','-nostdin',...seek,'-i',inputPath,...end,'-map_metadata','0','-vn',
       '-af',measuredLoudnorm({targetLufs,truePeakDb},measurement),
       '-ar','44100','-ac','2','-c:a','libmp3lame','-b:a','320k','-write_xing','1',temporary
     ]);

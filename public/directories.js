@@ -68,6 +68,7 @@ function refreshDirectorySelects(){
   parent.innerHTML=roots.map(item=>`<option value="${directoryEscape(item.id)}">${directoryEscape(item.name)}</option>`).join('')+'<option value="__new_parent__">＋ Nova pasta...</option>';
   if(roots.some(item=>item.id===previous))parent.value=previous;else if(previous==='__new_parent__')parent.value=previous;
  }
+ try{if(typeof refreshImportSubcategoryOptions==='function')refreshImportSubcategoryOptions();}catch(error){console.error('Falha ao atualizar subpastas do importador:',error);}
 }
 async function refreshAgentSyncStatus(){
  const wrap=$dir('agentSyncStatus');if(!wrap)return;
@@ -78,7 +79,7 @@ async function loadDirectorySettings(){
  const result=await actionRequest('/api/catalog-directories');
  catalogDirectories=result.items||[];
  directoryLibraryRoot=result.libraryBasePath||result.inboxDir||'';
- refreshDirectorySelects();renderDirectorySettings();renderLibrary();
+ refreshDirectorySelects();if(typeof refreshImportSubcategoryOptions==='function')refreshImportSubcategoryOptions();renderDirectorySettings();renderLibrary();
  await refreshAgentSyncStatus();
 }
 function directoryBaseFor(item){
@@ -262,7 +263,10 @@ $dir('directoryTableWrap').addEventListener('click',event=>{
  if(edit){const item=catalogDirectories.find(row=>row.id===edit.dataset.editDirectory);if(item)openDirectoryEditor(item);return;}
  const open=event.target.closest('[data-open-path]');if(open)openDirectoryPath(open.dataset.openPath);
 });
-document.querySelector('[data-view="settings"]')?.addEventListener('click',()=>loadDirectorySettings().catch(error=>{$dir('directoryTableWrap').innerHTML=`<p class="empty">${directoryEscape(error.message)}</p>`;}));
+document.querySelector('.sidebar-nav [data-view="settings"]')?.addEventListener('click',()=>{
+ const view=document.getElementById('settingsView');if(view){document.querySelectorAll('.page-view').forEach(page=>page.hidden=page!==view);document.querySelectorAll('.nav-item[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view==='settings'));const title=document.getElementById('pageTitle');if(title)title.textContent='Configurações';}
+ loadDirectorySettings().catch(error=>{$dir('directoryTableWrap').innerHTML=`<p class="empty">${directoryEscape(error.message)}</p>`;});
+});
 document.querySelectorAll('[data-settings-tab]').forEach(button=>button.addEventListener('click',()=>{
  const directories=button.dataset.settingsTab==='directories';
  document.querySelectorAll('[data-settings-tab]').forEach(tab=>tab.classList.toggle('active',tab===button));

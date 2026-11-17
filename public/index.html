@@ -69,7 +69,8 @@
           <section class="hero panel catalog-hero catalog-toolbar">
             <div class="catalog-heading"><small>GERENCIAMENTO DE ÁUDIO</small><h1>Catálogo</h1></div>
             <div class="catalog-toolbar-actions">
-              <button id="openImport" class="catalog-action primary" type="button"><span>⇧</span> Importar Áudio</button>
+              <button id="openImport" class="catalog-action primary" type="button"><span>＋</span> Adicionar áudio</button>
+              <button id="importToCatalog" class="catalog-action import-catalog-button" type="button"><span>↑</span> Importar para o catálogo</button>
               <button id="openCdImport" class="catalog-action" type="button"><span>◉</span> Importar CD</button>
               <button id="catalogTrash" class="catalog-action" type="button"><span>▣</span> Lixeira</button>
               <label id="catalogSearchWrap" class="library-search catalog-search"><span aria-hidden="true">⌕</span><input id="librarySearch" type="search" placeholder="Buscar áudio..." aria-label="Buscar nos áudios importados"></label>
@@ -113,9 +114,24 @@
         </section>
       </main>
     </div>
+  <div id="stagingEditModal" class="modal" hidden>
+    <section class="modal-card staging-editor-card panel" role="dialog" aria-modal="true" aria-labelledby="stagingEditHeading">
+      <div class="modal-head"><div><small>PREPARAÇÃO DO ÁUDIO</small><h2 id="stagingEditHeading">Editor de áudio</h2><p id="stagingEditTitle">Ajuste os pontos de início e fim antes da publicação.</p></div><button id="closeStagingEdit" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <form id="stagingEditForm">
+        <audio id="stagingEditPlayer" controls preload="metadata"></audio>
+        <div class="staging-trim-grid">
+          <label>Início do corte (segundos)<input id="stagingEditCueIn" type="number" min="0" step="0.01" required></label>
+          <label>Fim do corte (segundos)<input id="stagingEditCueOut" type="number" min="0" step="0.01" required></label>
+        </div>
+        <p class="staging-editor-hint">Duração atual: <strong id="stagingEditDuration">00:00</strong>. O sistema reaplica a normalização e valida o MP3 após o corte.</p>
+        <p id="stagingEditError" class="manage-error" role="alert"></p>
+        <div class="modal-actions"><button id="cancelStagingEdit" type="button" class="secondary">Cancelar</button><button id="saveStagingEdit" type="submit" class="primary">Salvar edição</button></div>
+      </form>
+    </section>
+  </div>
       <div id="importModal" class="modal" hidden>
     <section class="modal-card panel" role="dialog" aria-modal="true" aria-labelledby="importTitle">
-      <div class="modal-head"><div><small>IMPORTAÇÃO MANUAL</small><h2 id="importTitle">Adicionar áudios à Biblioteca</h2><p id="importDescription">Selecione os áudios. Depois do processamento, use Salvar para baixar o arquivo final e escolher onde guardá-lo no app Arquivos.</p><p id="cdImportNote" class="cd-import-note" hidden>Selecione faixas de áudio do CD disponibilizadas pelo computador. O navegador não extrai CDs diretamente.</p></div><button id="closeImport" class="icon-button" type="button" aria-label="Fechar">×</button></div>
+      <div class="modal-head"><div><small>IMPORTAÇÃO MANUAL</small><h2 id="importTitle">Adicionar áudios à Biblioteca</h2><p id="importDescription">Os arquivos serão adicionados à área de preparação. Eles só entram na Biblioteca definitiva depois de preparados e publicados no catálogo.</p><p id="cdImportNote" class="cd-import-note" hidden>Selecione faixas de áudio do CD disponibilizadas pelo computador. O navegador não extrai CDs diretamente.</p></div><button id="closeImport" class="icon-button" type="button" aria-label="Fechar">×</button></div>
       <form id="importForm">
         <div class="source-field"><span>Origem da importação</span><div class="source-tabs">
           <button type="button" class="source-tab active" data-mode="files"><b>♫</b><span><strong>Arquivos</strong><small>Um ou vários áudios</small></span></button>
@@ -125,10 +141,10 @@
         <label class="category-label">Pasta / categoria<select id="importCategory">
           <option>Músicas</option><option>Comerciais</option><option>Vinhetas</option><option>Intercons</option><option>Trilhas</option><option>Chamadas</option><option>Locução</option><option>Hora Certa</option><option>Temperatura</option><option>Outros</option>
         </select></label>
-        <label id="importSubcategoryField" class="category-label" hidden>Subpasta<input id="importSubcategory" maxlength="80" placeholder="Ex.: Voz Masculina"><small>Destino opcional dentro da pasta selecionada.</small></label>
+        <label id="importSubcategoryField" class="category-label" hidden>Subpasta<select id="importSubcategory"><option value="">Sem subpasta</option></select><small>Selecione uma subpasta já cadastrada dentro da pasta principal.</small></label>
         <label class="drop-zone"><input id="importFiles" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"><span class="upload-icon">⇧</span><strong id="dropTitle">Escolher arquivos de áudio</strong><small id="dropHint">MP3, WAV, FLAC, AAC, M4A ou OGG · até 1 GB por arquivo</small><em id="dropNote">Os originais serão preservados</em></label>
         <div id="uploadQueue" class="upload-queue"><p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p></div>
-        <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Importar selecionados</button></div>
+        <div class="modal-actions"><button id="cancelImport" type="button" class="secondary">Cancelar</button><button id="startImport" type="submit" class="primary" disabled>Adicionar áudio</button></div>
       </form>
     </section>
   </div>

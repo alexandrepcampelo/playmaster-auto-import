@@ -78,7 +78,7 @@ export class ImportStore{
       result.total+=1;
       result[item.status]=(result[item.status]||0)+1;
       return result;
-    },{total:0,received:0,processing:0,ready:0,error:0,deleted:0});
+    },{total:0,received:0,processing:0,staged_ready:0,ready:0,error:0,deleted:0});
   }
 
   async create(input){
@@ -96,6 +96,7 @@ export class ImportStore{
       checksum:String(input.checksum||''),
       size:Number(input.size)||0,
       duration:Number(input.duration)||0,
+      sourceDuration:Number(input.sourceDuration)||0,
       title:String(input.title||''),
       artist:String(input.artist||''),
       album:String(input.album||''),
@@ -126,7 +127,7 @@ export class ImportStore{
   async update(id,patch){
     const item=this.state.items.find(row=>row.id===id);
     if(!item) return null;
-    const allowed=['fileName','category','subcategory','originalPath','processedPath','checksum','duration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
+    const allowed=['fileName','category','subcategory','originalPath','processedPath','checksum','duration','sourceDuration','title','artist','album','year','sourceFormat','outputFormat','inputLufs','outputLufs','truePeak','cueIn','cueOut','processingStage','status','error'];
     const previousStatus=item.status;
     for(const key of allowed){
       if(Object.hasOwn(patch,key)) item[key]=patch[key];
@@ -174,7 +175,7 @@ export class ImportStore{
   async restore(id){
     const item=this.findById(id);
     if(!item || item.status!=='deleted') return null;
-    const restoredStatus=['ready','error','received','processing'].includes(item.deletedFromStatus)?item.deletedFromStatus:(item.processedPath?'ready':'error');
+    const restoredStatus=['ready','error','received','processing','staged_ready'].includes(item.deletedFromStatus)?item.deletedFromStatus:(item.processedPath?'ready':'error');
     item.status=restoredStatus;
     item.processingStage=restoredStatus==='ready'?'ready':item.processingStage;
     item.deletedAt='';

@@ -18,11 +18,11 @@ function escapeText(value){
 }
 
 function statusLabel(status){
-  return ({received:'Recebido',processing:'Processando',ready:'Pronto',error:'Erro',deleted:'Na Lixeira'})[status]||status;
+  return ({received:'Em preparação',processing:'Processando',staged_ready:'Pronto para publicar',ready:'Publicado',error:'Erro',deleted:'Na Lixeira'})[status]||status;
 }
 
 function stageLabel(item){
-  return ({preserving:'Preservando',analyzing:'Analisando',converting:'Normalizando',verifying:'Verificando',ready:'Pronto',error:'Com erro'})[item.processingStage]||statusLabel(item.status);
+  return ({preserving:'Preservando',analyzing:'Analisando',converting:'Normalizando',verifying:'Verificando',staged_ready:'Pronto para publicar',ready:'Publicado',error:'Com erro'})[item.processingStage]||statusLabel(item.status);
 }
 
 function stageProgress(item){
@@ -122,22 +122,25 @@ function libraryRowTemplate(item){
   const duration=formatDuration(item.duration);
   const category=item.category||'Outros';
   const audioUrl=`/api/imports/${encodeURIComponent(item.id)}/audio`;
-  const canPlay=item.status==='ready'&&item.processedPath;
+  const canPlay=['ready','staged_ready'].includes(item.status)&&item.processedPath;
+  const stagingLabel=item.source==='manual-staging'&&item.status!=='ready'?`<span class="staging-state ${item.status==='staged_ready'?'ready':item.status==='error'?'error':'pending'}">${item.status==='staged_ready'?'Pronto para publicar':item.status==='error'?'Falha na preparação':'Em preparação'}</span>`:'';
   const menu=`<div class="item-actions" data-menu-for="${escapeText(item.id)}" hidden>
+    ${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)?`<button type="button" data-action="prepare" data-id="${escapeText(item.id)}"><span>≋</span>Preparar e validar áudio</button>`:''}
+    ${item.source==='manual-staging'&&item.status==='staged_ready'? `<button type="button" data-action="publish" data-id="${escapeText(item.id)}"><span>↑</span>Importar para o catálogo</button>`:''}
     <button type="button" data-action="move" data-id="${escapeText(item.id)}"><span>↪</span>Mover para outra pasta</button>
-    <button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>
+    ${item.source==='manual-staging'?'':`<button type="button" data-action="reprocess" data-id="${escapeText(item.id)}"><span>↻</span>Reprocessar áudio</button>`}
   </div>`;
   return `<div class="library-row" role="row">
     <span class="library-cell name-cell" title="${escapeText(title)}"><span class="library-name-wrap">
       ${canPlay?`<button class="play-audio table-play-button" type="button" data-url="${escapeText(audioUrl)}" data-title="${escapeText(title)}" aria-label="Ouvir ${escapeText(title)}">▶</button>`:''}
-      <span class="library-name-text">${escapeText(title)}</span>
+      <span class="library-name-text">${escapeText(title)}</span>${stagingLabel}
       ${canPlay?`<a class="download-audio-button" href="/api/imports/${encodeURIComponent(item.id)}/download" aria-label="Salvar ${escapeText(title)} no Arquivos" title="Salvar áudio processado">↓</a>`:''}
       <button class="item-menu-btn table-menu-button" type="button" data-menu-id="${escapeText(item.id)}" aria-label="Mais opções de ${escapeText(title)}" aria-expanded="false">•••</button>
     </span>${menu}</span>
     <span class="library-cell artist-cell" title="${escapeText(artist)}">${escapeText(artist)}</span>
     <span class="library-cell duration-cell">${escapeText(duration)}</span>
     <span class="library-cell date-cell">${escapeText(formatAddedDate(item))}</span>
-    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" disabled title="Editor de áudio — em preparação" aria-label="Editor de áudio">≋</button></span>
+    <span class="library-cell action-cell"><button class="table-icon-button audio-editor-button" type="button" ${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)? `data-action="prepare" data-id="${escapeText(item.id)}" title="Preparar e validar áudio"`:item.source==='manual-staging'&&item.status==='staged_ready'? `data-action="edit-audio" data-id="${escapeText(item.id)}" title="Editar cortes do áudio"`:'disabled title="Editor de áudio — em preparação"'} aria-label="Preparar, editar ou publicar áudio">${item.source==='manual-staging'&&['received','error','processing'].includes(item.status)?'Preparar':item.source==='manual-staging'&&item.status==='staged_ready'?'Editar':'≋'}</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button" type="button" data-action="edit" data-id="${escapeText(item.id)}" title="Editar informações" aria-label="Editar informações">✎</button></span>
     <span class="library-cell action-cell"><button class="table-icon-button delete-icon" type="button" data-action="trash" data-id="${escapeText(item.id)}" title="Mover para a Lixeira" aria-label="Mover para a Lixeira"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></span>
   </div>`;
@@ -228,11 +231,27 @@ function renderUploadQueue(states={}){
   }).join(''):'<p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p>';
 }
 
+function refreshImportSubcategoryOptions(reset=false){
+  const select=$('#importSubcategory');
+  const field=$('#importSubcategoryField');
+  if(!select||!field) return;
+  const category=$('#importCategory').value;
+  const parent=catalogDirectories.find(item=>item.type==='folder'&&item.active&&item.name===category);
+  const children=catalogDirectories
+    .filter(item=>item.type==='subfolder'&&item.active&&item.parentId===parent?.id)
+    .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const previous=reset?'':select.value;
+  select.innerHTML='<option value="">Sem subpasta</option>'+children.map(item=>'<option value="'+escapeText(item.name)+'">'+escapeText(item.name)+'</option>').join('');
+  if(children.some(item=>item.name===previous)) select.value=previous;
+  field.hidden=children.length===0;
+}
+
 function openImport(){
   $('#importTitle').textContent='Adicionar áudios à Biblioteca';
   $('#importDescription').textContent='Selecione os arquivos e informe a pasta de destino.';
   $('#cdImportNote').hidden=true;
   selectImportMode('files');
+  refreshImportSubcategoryOptions();
   $('#importModal').hidden=false;
   document.body.classList.add('modal-open');
 }
@@ -311,6 +330,7 @@ async function refresh(){
     catalogDirectories=directoryData.items||[];
     if(typeof renderDirectorySettings==='function'&&!$('#settingsView').hidden) renderDirectorySettings();
     if(typeof refreshDirectorySelects==='function') refreshDirectorySelects();
+    refreshImportSubcategoryOptions();
     $('#total').textContent=status.counts.total;
     $('#processing').textContent=status.counts.processing+status.counts.received;
     $('#ready').textContent=status.counts.ready;
@@ -417,6 +437,41 @@ function openManage(item,mode){
   document.body.classList.add('modal-open');
 }
 
+function openStagingEditor(item){
+  if(!item||item.source!=='manual-staging'||item.status!=='staged_ready') return;
+  $('#stagingEditId').value=item.id;
+  $('#stagingEditTitle').textContent=item.title||item.fileName;
+  $('#stagingEditCueIn').value=Number(item.cueIn)||0;
+  $('#stagingEditCueOut').value=Number(item.cueOut)||Number(item.sourceDuration)||Number(item.duration)||0;
+  $('#stagingEditDuration').textContent=formatDuration(item.sourceDuration||item.duration,true);
+  $('#stagingEditError').textContent='';
+  $('#stagingEditPlayer').src=`/api/staging/${encodeURIComponent(item.id)}/original`;
+  $('#stagingEditModal').hidden=false;
+  document.body.classList.add('modal-open');
+}
+function closeStagingEditor(){
+  $('#stagingEditPlayer').pause();
+  $('#stagingEditPlayer').removeAttribute('src');
+  $('#stagingEditModal').hidden=true;
+  document.body.classList.remove('modal-open');
+}
+$('#closeStagingEdit').addEventListener('click',closeStagingEditor);
+$('#cancelStagingEdit').addEventListener('click',closeStagingEditor);
+$('#stagingEditModal').addEventListener('click',event=>{if(event.target===event.currentTarget)closeStagingEditor();});
+$('#stagingEditForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=$('#saveStagingEdit');
+  button.disabled=true;
+  $('#stagingEditError').textContent='';
+  try{
+    const id=$('#stagingEditId').value;
+    await actionRequest(`/api/staging/${encodeURIComponent(id)}/edit`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cueIn:Number($('#stagingEditCueIn').value),cueOut:Number($('#stagingEditCueOut').value)})});
+    closeStagingEditor();
+    await refresh();
+  }catch(error){$('#stagingEditError').textContent=error.message;}
+  finally{button.disabled=false;}
+});
+
 function closeManage(){
   $('#manageModal').hidden=true;
   document.body.classList.remove('modal-open');
@@ -455,6 +510,14 @@ $('#items').addEventListener('click',async event=>{
   closeItemMenus();
   try{
     if(action==='move' || action==='edit') return openManage(item,action);
+    if(action==='edit-audio') return openStagingEditor(item);
+    if(action==='prepare'){
+      actionButton.disabled=true;
+      await actionRequest(`/api/staging/${encodeURIComponent(id)}/prepare`,{method:'POST'});
+    }else if(action==='publish'){
+      actionButton.disabled=true;
+      await actionRequest(`/api/staging/${encodeURIComponent(id)}/publish`,{method:'POST'});
+    }
     if(action==='reprocess'){
       if(!confirm(`Reprocessar “${item.title||item.fileName}” usando o arquivo original?`)) return;
       await actionRequest(`/api/imports/${encodeURIComponent(id)}/reprocess`,{method:'POST'});
@@ -545,6 +608,48 @@ $('#librarySubfolders').addEventListener('click',event=>{
 });
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
+$('#importToCatalog').addEventListener('click',async()=>{
+  const button=$('#importToCatalog');
+  const pending=currentItems.filter(item=>item.source==='manual-staging'&&item.status==='staged_ready'&&(!selectedFolderCategory||item.category===selectedFolderCategory)&&(!selectedFolderSubcategory||(item.subcategory||'')===selectedFolderSubcategory));
+  if(!pending.length){button.textContent='Importar para o catálogo';button.style.background='';alert('Não há áudios preparados nesta pasta. Use Preparar primeiro.');return;}
+  button.disabled=true;
+  let completed=0;
+  const original=button.textContent;
+  const paint=percent=>{
+    button.style.background=`linear-gradient(90deg,#ef4444 ${percent}%,#e98a18 ${percent}%)`;
+    button.textContent=`${percent}%`;
+  };
+  paint(0);
+  try{
+    for(const item of pending){
+      let finished=false;
+      const publication=actionRequest(`/api/staging/${encodeURIComponent(item.id)}/publish`,{method:'POST'}).then(value=>{finished=true;return value;},error=>{finished=true;throw error;});
+      let stagePercent=0;
+      while(!finished){
+        await new Promise(resolve=>setTimeout(resolve,300));
+        const response=await fetch('/api/imports?limit=500');
+        if(response.ok){
+          const data=await response.json();
+          const live=data.items.find(row=>row.id===item.id);
+          stagePercent=live?.status==='ready'?100:live?.processingStage==='verifying'?82:live?.processingStage==='publishing'?48:8;
+          paint(Math.round((completed+stagePercent/100)/pending.length*100));
+        }
+      }
+      await publication;
+      completed+=1;
+      paint(Math.round(completed/pending.length*100));
+    }
+    button.textContent='100% · Publicado';
+    await refresh();
+  }catch(error){
+    alert(error.message);
+    await refresh();
+  }finally{
+    button.disabled=false;
+    if(completed!==pending.length){button.textContent=original;button.style.background='';}
+  }
+});
+
 $('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
 $('#catalogTrash').addEventListener('click',()=>currentLibraryView==='trash'?$('#activeTab').click():$('#trashTab').click());
 $('#closeImport').addEventListener('click',closeImport);
@@ -552,7 +657,7 @@ $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
 document.querySelectorAll('.source-tab').forEach(button=>button.addEventListener('click',()=>selectImportMode(button.dataset.mode)));
 $('#importFiles').addEventListener('change',()=>renderUploadQueue());
-$('#importCategory').addEventListener('change',()=>{const hasChildren=catalogDirectories.some(item=>item.type==='subfolder'&&item.active&&catalogDirectories.find(parent=>parent.id===item.parentId)?.name===$('#importCategory').value);$('#importSubcategoryField').hidden=!hasChildren&&!['Hora Certa','Temperatura'].includes($('#importCategory').value);if($('#importSubcategoryField').hidden)$('#importSubcategory').value='';});
+$('#importCategory').addEventListener('change',()=>refreshImportSubcategoryOptions(true));
 $('#importForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const files=selectedFiles();
@@ -587,7 +692,7 @@ $('#importForm').addEventListener('submit',async event=>{
         states[index]={label:`Enviando ${progress}%`,progress,type:'sending'};
         renderUploadQueue(states);
       });
-      states[index]={label:result.reclassified?`Registro existente atualizado para ${result.item?.category||$('#importCategory').value}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.duplicate?`Já constava na Biblioteca · ${result.item?.category||'Outros'}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.queued?`Recebido · ${result.item?.id||'ID gerado'}`:`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
+      states[index]={label:result.staged?`Adicionado à preparação · ${result.item?.id||''}`:result.reclassified?`Registro existente atualizado para ${result.item?.category||$('#importCategory').value}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.duplicate?`Já constava na Biblioteca · ${result.item?.category||'Outros'}${result.item?.subcategory?' / '+result.item.subcategory:''} · ${result.item?.id||''}`:result.queued?`Recebido · ${result.item?.id||'ID gerado'}`:`Concluído · ${result.item?.id||'ID gerado'}`,progress:100,type:'done'};
     }catch(error){
       states[index]={label:error.message,progress:100,type:'error'};
     }

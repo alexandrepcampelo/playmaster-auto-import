@@ -2,7 +2,7 @@ import http from 'node:http';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { createReadStream } from 'node:fs';
-import { mkdir,readFile,readdir,realpath,rm,stat } from 'node:fs/promises';
+import { access,copyFile,mkdir,readFile,readdir,realpath,rename,rm,stat } from 'node:fs/promises';
 import { dirname,extname,join,normalize,relative,resolve,sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
@@ -14,6 +14,7 @@ import { receiveUpload } from './upload.js';
 import { receiveArchive } from './archive-upload.js';
 import { parseLibraryQuery,publicLibraryItem,validateAcknowledgement } from './library.js';
 import { createWeatherService } from './weather.js';
+import { analyzeAudio,convertAudio,displayTitle } from './audio-processor.js';
 
 const publicDir=join(fileURLToPath(new URL('.',import.meta.url)),'..','public');
 const store=new ImportStore(config);
@@ -182,7 +183,8 @@ async function streamProcessedAudio(req,res,item,allowDeleted=false,download=fal
   const info=await stat(item.processedPath);
   const range=String(req.headers.range||'').match(/^bytes=(\d*)-(\d*)$/);
   const extension=extname(item.processedPath).toLowerCase();
-  const headers={'content-type':extension==='.wav'?'audio/wav':'audio/mpeg','accept-ranges':'bytes','cache-control':'private, no-store'};
+  const audioContentTypes={'.mp3':'audio/mpeg','.wav':'audio/wav','.flac':'audio/flac','.aac':'audio/aac','.m4a':'audio/mp4','.ogg':'audio/ogg'};
+  const headers={'content-type':audioContentTypes[extension]||'application/octet-stream','accept-ranges':'bytes','cache-control':'private, no-store'};
   if(download){
     const rawName=String(item.title||item.fileName||'audio-processado').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim()||'audio-processado';
     const filename=rawName.replace(/\.[^.]+$/,'')+(extension||'.mp3');
@@ -411,7 +413,11 @@ const server=http.createServer(async(req,res)=>{
       const item=store.findById(id);
       if(!item || item.status!=='deleted') return json(res,404,{error:'Item da Lixeira não encontrado.'});
       if(item.source==='voice-track') await removeStoredFile(item.processedPath,config.processedDir);
-      else {
+      else if(item.source==='manual-staging') {
+        if(item.originalPath && resolve(item.originalPath).startsWith(resolve(config.tempDir)+sep)) await removeStoredFile(item.originalPath,config.tempDir);
+        if(item.processedPath && resolve(item.processedPath).startsWith(resolve(config.tempDir)+sep)) await removeStoredFile(item.processedPath,config.tempDir);
+        if(item.processedPath && resolve(item.processedPath).startsWith(resolve(config.libraryDir)+sep)) await removeStoredFile(item.processedPath,config.libraryDir);
+      } else {
         await removeStoredFile(item.originalPath,config.originalsDir);
         await removeStoredFile(item.processedPath,config.libraryDir);
       }
@@ -460,14 +466,95 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/uploads/archive' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
-      const archive=await receiveArchive(req,{...config,directoryStore});
-      const results=await Promise.all(archive.files.map(filePath=>importer.ingest(filePath,{background:true})));
-      await Promise.all(results.map((result,index)=>result?.duplicate?rm(archive.files[index],{force:true}):null));
-      const items=results.filter(Boolean).map(result=>result.item).filter(Boolean);
-      return json(res,202,{
-        ok:true,queued:true,count:items.length,duplicates:results.filter(result=>result?.duplicate).length,
-        items,received:{fileName:archive.fileName,category:archive.category,subcategory:archive.subcategory,size:archive.size}
-      });
+      const archive=await receiveArchive(req,{...config,inboxDir:config.tempDir,directoryStore});
+      const items=[];
+      for(const filePath of archive.files){
+        const info=await stat(filePath);
+        items.push(await store.create({fileName:filePath.split(sep).at(-1),category:archive.category,subcategory:archive.subcategory,source:'manual-staging',originalPath:filePath,size:info.size,title:displayTitle({},filePath),status:'received',processingStage:'received'}));
+      }
+      return json(res,202,{ok:true,queued:true,count:items.length,items,received:{fileName:archive.fileName,category:archive.category,subcategory:archive.subcategory,size:archive.size}});
+    }
+    const stagingPrepareMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/prepare$/);
+    if(stagingPrepareMatch && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(stagingPrepareMatch[1]);
+      const item=store.findById(id);
+      if(!item || item.source!=='manual-staging' || item.status==='deleted') return json(res,404,{error:'Áudio em preparação não encontrado.'});
+      if(item.status==='staged_ready') return json(res,200,{ok:true,item});
+      let outputPath='';
+      try{
+        const analysis=await analyzeAudio(item.originalPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        outputPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness});
+        const output=await analyzeAudio(outputPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        if(output.sampleRate!==44100 || output.sourceFormat!=='MP3' || output.channels!==2 || output.bitRate<300000) throw new Error('O áudio convertido não atende ao perfil MP3 320 kbps CBR, 44,1 kHz e estéreo.');
+        const updated=await store.update(id,{duration:output.duration,sourceDuration:analysis.duration,title:analysis.title||displayTitle({},item.fileName),artist:analysis.artist,album:analysis.album,year:analysis.year,sourceFormat:analysis.sourceFormat,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',inputLufs:analysis.inputLufs,outputLufs:output.inputLufs,truePeak:output.inputTruePeak,cueIn:analysis.cueIn,cueOut:analysis.cueOut,processedPath:outputPath,processingStage:'staged_ready',status:'staged_ready',error:''});
+        return json(res,200,{ok:true,item:updated,verified:{sampleRate:output.sampleRate,bitRate:output.bitRate,channels:output.channels}});
+      }catch(error){
+        if(outputPath && resolve(outputPath).startsWith(resolve(config.tempDir)+sep)) await rm(outputPath,{force:true});
+        const failed=await store.update(id,{status:'error',processingStage:'error',error:error.message});
+        return json(res,422,{error:error.message,item:failed});
+      }
+    }
+    const stagingOriginalMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/original$/);
+    if(stagingOriginalMatch && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      const item=store.findById(decodeURIComponent(stagingOriginalMatch[1]));
+      if(!item||item.source!=='manual-staging'||!item.originalPath||item.status==='deleted') return json(res,404,{error:'Áudio original não encontrado.'});
+      return await streamProcessedAudio(req,res,{...item,processedPath:item.originalPath});
+    }
+    const stagingEditMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/edit$/);
+    if(stagingEditMatch && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(stagingEditMatch[1]);
+      const item=store.findById(id);
+      if(!item || item.source!=='manual-staging' || item.status!=='staged_ready') return json(res,409,{error:'Prepare o áudio antes de abrir o editor.'});
+      const input=await body(req);
+      const cueIn=Number(input.cueIn);
+      const cueOut=Number(input.cueOut);
+      if(!Number.isFinite(cueIn)||!Number.isFinite(cueOut)||cueIn<0||cueOut<=cueIn||cueOut>(item.sourceDuration||item.duration)+0.05) return json(res,400,{error:'Informe um início e fim válidos dentro da duração do áudio.'});
+      const editId=id+'-edit-'+Date.now();
+      let editedPath='';
+      try{
+        const analysis=await analyzeAudio(item.originalPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        editedPath=await convertAudio(item.originalPath,{processedDir:config.tempDir,id:editId,targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,measurement:analysis.loudness,cueIn,cueOut});
+        const output=await analyzeAudio(editedPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        if(output.sampleRate!==44100||output.sourceFormat!=='MP3'||output.channels!==2||output.bitRate<300000) throw new Error('A edição gerada não atende ao padrão técnico do catálogo.');
+        const previousPath=item.processedPath;
+        const updated=await store.update(id,{processedPath:editedPath,duration:output.duration,sourceDuration:analysis.duration,cueIn,cueOut,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',outputLufs:output.inputLufs,truePeak:output.inputTruePeak,processingStage:'staged_ready',status:'staged_ready',error:''});
+        if(previousPath&&resolve(previousPath).startsWith(resolve(config.tempDir)+sep)&&resolve(previousPath)!==resolve(editedPath)) await rm(previousPath,{force:true});
+        return json(res,200,{ok:true,item:updated});
+      }catch(error){
+        if(editedPath&&resolve(editedPath).startsWith(resolve(config.tempDir)+sep)) await rm(editedPath,{force:true});
+        return json(res,422,{error:error.message});
+      }
+    }
+    const stagingPublishMatch=url.pathname.match(/^\/api\/staging\/([^/]+)\/publish$/);
+    if(stagingPublishMatch && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const id=decodeURIComponent(stagingPublishMatch[1]);
+      const item=store.findById(id);
+      if(!item || item.source!=='manual-staging' || item.status!=='staged_ready' || !item.processedPath) return json(res,409,{error:'Prepare e valide o áudio antes de publicar.'});
+      await access(item.processedPath);
+      const folders=directoryStore.list();
+      const folder=folders.find(row=>row.type==='folder'&&row.name===item.category);
+      const child=folder&&item.subcategory?folders.find(row=>row.type==='subfolder'&&row.parentId===folder.id&&row.name===item.subcategory):null;
+      const destinationDir=child?.path||(folder?join(folder.path,item.subcategory||''):join(config.libraryDir,item.category,item.subcategory||''));
+      await mkdir(destinationDir,{recursive:true});
+      const libraryRoot=await realpath(config.libraryDir);
+      const actualDestination=await realpath(destinationDir);
+      if(actualDestination!==libraryRoot&&!actualDestination.startsWith(libraryRoot+sep)) return json(res,400,{error:'O destino está fora da Biblioteca do VPS.'});
+      const processedPath=join(actualDestination,id+'.mp3');
+      const publishingPath=join(actualDestination,'.'+id+'.publishing.mp3');
+      try{
+        await store.update(id,{status:'processing',processingStage:'publishing',error:''});
+        await copyFile(item.processedPath,publishingPath);
+        await store.update(id,{processingStage:'verifying'});
+        const finalInfo=await analyzeAudio(publishingPath,{targetLufs:config.targetLufs,truePeakDb:config.truePeakDb,silenceThresholdDb:config.silenceThresholdDb,silenceDuration:config.silenceDuration});
+        if(finalInfo.sampleRate!==44100 || finalInfo.sourceFormat!=='MP3' || finalInfo.channels!==2 || finalInfo.bitRate<300000) throw new Error('A verificação final do arquivo publicado falhou.');
+        await rename(publishingPath,processedPath);
+        const ready=await store.update(id,{processedPath,outputFormat:'MP3 320 kbps CBR · 44,1 kHz',processingStage:'ready',status:'ready',error:''});
+        return json(res,200,{ok:true,published:true,item:ready});
+      }catch(error){await rm(publishingPath,{force:true});await store.update(id,{status:'staged_ready',processingStage:'staged_ready',error:error.message});throw error;}
     }
     if(url.pathname==='/api/voice-track' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
@@ -490,13 +577,9 @@ const server=http.createServer(async(req,res)=>{
     }
     if(url.pathname==='/api/uploads' && req.method==='POST'){
       if(!hasApiToken(req) && !panelSession(req)) return json(res,401,{error:'Autenticação necessária.'});
-      const upload=await receiveUpload(req,{inboxDir:config.inboxDir,maxBytes:config.maxUploadBytes,directoryStore});
-      const result=await importer.ingest(upload.filePath,{background:true});
-      if(result?.duplicate) await rm(upload.filePath,{force:true});
-      return json(res,result?.duplicate?200:202,{
-        ok:true,duplicate:Boolean(result?.duplicate),reclassified:Boolean(result?.reclassified),queued:Boolean(result?.queued),item:result?.item||null,
-        received:{fileName:upload.fileName,category:upload.category,subcategory:upload.subcategory,size:upload.size}
-      });
+      const upload=await receiveUpload(req,{inboxDir:config.tempDir,maxBytes:config.maxUploadBytes,directoryStore});
+      const item=await store.create({fileName:upload.fileName,category:upload.category,subcategory:upload.subcategory,source:'manual-staging',originalPath:upload.filePath,size:upload.size,title:displayTitle({},upload.filePath),status:'received',processingStage:'received'});
+      return json(res,201,{ok:true,staged:true,item,received:{fileName:upload.fileName,category:upload.category,subcategory:upload.subcategory,size:upload.size}});
     }
     const route=url.pathname==='/'?'/index.html':url.pathname;
     const safe=normalize(route).replace(/^(\.\.[/\\])+/, '');
