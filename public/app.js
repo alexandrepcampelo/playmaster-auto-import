@@ -104,15 +104,21 @@ function folderTreeTemplate(){
 
 function librarySubfoldersTemplate(){
   if(currentLibraryView==='trash') return '';
-  const parent=catalogDirectories.find(item=>item.type==='folder'&&item.name===selectedFolderCategory);
-  const configured=catalogDirectories.filter(item=>item.type==='subfolder'&&item.parentId===parent?.id&&item.active).map(item=>item.name);
-  const disabledSubfolders=catalogDirectories.filter(item=>item.type==='subfolder'&&item.parentId===parent?.id&&!item.active).map(item=>item.name);
-  const existing=currentItems.filter(item=>(item.category||'Outros')===selectedFolderCategory&&item.subcategory&&!disabledSubfolders.includes(item.subcategory)).map(item=>item.subcategory);
-  const subcategories=[...new Set([...configured,...existing])].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  if(!subcategories.length) return '';
-  return `<div class="library-subfolders" aria-label="Subpastas de ${escapeText(selectedFolderCategory)}">
+  const paths=new Set();
+  for(const item of currentItems){
+    if((item.category||'Outros')!==selectedFolderCategory||!item.subcategory) continue;
+    const parts=String(item.subcategory).split('/').filter(Boolean);
+    for(let index=0;index<parts.length;index++) paths.add(parts.slice(0,index+1).join('/'));
+  }
+  if(!paths.size) return '';
+  const subcategories=[...paths].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  return `<div class="library-subfolders" aria-label="Hierarquia de pastas de ${escapeText(selectedFolderCategory)}">
     <button class="subcategory-chip ${selectedFolderSubcategory?'':'active'}" type="button" data-library-subcategory="">Todas</button>
-    ${subcategories.map(subcategory=>`<button class="subcategory-chip ${selectedFolderSubcategory===subcategory?'active':''}" type="button" data-library-subcategory="${escapeText(subcategory)}">${escapeText(subcategory)}</button>`).join('')}
+    ${subcategories.map(path=>{
+      const depth=path.split('/').length-1;
+      const label=path.split('/').at(-1);
+      return `<button class="subcategory-chip nested-subcategory-chip ${selectedFolderSubcategory===path?'active':''}" style="margin-left:${depth*18}px" type="button" data-library-subcategory="${escapeText(path)}" title="${escapeText(path)}"><span aria-hidden="true">↳</span> ${escapeText(label)}</button>`;
+    }).join('')}
   </div>`;
 }
 
@@ -303,18 +309,14 @@ async function refresh(){
   button.disabled=true;
   try{
     const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
-    const [statusResponse,itemsResponse,directoryResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint),fetch('/api/catalog-directories')]);
+    const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
       return;
     }
-    if(!statusResponse.ok || !itemsResponse.ok || !directoryResponse.ok) throw new Error('Servidor indisponível');
+    if(!statusResponse.ok || !itemsResponse.ok) throw new Error('Servidor indisponível');
     const status=await statusResponse.json();
     const {items}=await itemsResponse.json();
-    const directoryData=await directoryResponse.json();
-    catalogDirectories=directoryData.items||[];
-    if(typeof renderDirectorySettings==='function'&&!$('#settingsView').hidden) renderDirectorySettings();
-    if(typeof refreshDirectorySelects==='function') refreshDirectorySelects();
     $('#total').textContent=status.counts.total;
     $('#processing').textContent=status.counts.processing+status.counts.received;
     $('#ready').textContent=status.counts.ready;
