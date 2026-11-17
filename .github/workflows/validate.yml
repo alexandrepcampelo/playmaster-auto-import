@@ -38,6 +38,14 @@ jobs:
       - name: Syntax check
         run: npm run check
 
+      - name: Validate deployment scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in ops/bootstrap-test-deploy.sh ops/playmaster-github-bridge ops/playmaster-test-autoimport-deploy; do
+            bash -n "$script"
+          done
+
       - name: Unit tests
         run: npm test
 
