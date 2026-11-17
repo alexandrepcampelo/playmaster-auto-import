@@ -1,24 +1,24 @@
 import { mkdir,readFile,rename,writeFile } from 'node:fs/promises';
-import { join,isAbsolute,relative,resolve,sep } from 'node:path';
+import { dirname,isAbsolute,relative,resolve,sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 export function normalizeExcludedDirectory(value){
-  const raw=String(value||'').trim().replace(/\\\\/g,'/');
+  const raw=String(value||'').trim().replace(/\\/g,'/');
   if(!raw||raw.startsWith('/')||/^[A-Za-z]:/.test(raw)) throw Object.assign(new Error('Informe um caminho relativo à Biblioteca.'),{statusCode:400});
   const parts=raw.split('/').filter(Boolean);
-  if(!parts.length||parts.some(part=>part==='.'||part==='..'||/[<>:"|?*\\x00-\\x1f]/.test(part))) throw Object.assign(new Error('O caminho informado não é válido.'),{statusCode:400});
+  if(!parts.length||parts.some(part=>part==='.'||part==='..'||/[<>:"|?*\x00-\x1f]/.test(part))) throw Object.assign(new Error('O caminho informado não é válido.'),{statusCode:400});
   return parts.join('/');
 }
 
 export class ExcludedDirectoryStore{
   constructor({dataDir,libraryDir}){
-    this.filePath=join(dataDir,'catalog-exclusions.json');
+    this.filePath=resolve(dataDir,'catalog-exclusions.json');
     this.libraryDir=resolve(libraryDir);
     this.items=[];
     this.writeQueue=Promise.resolve();
   }
   async init(){
-    await mkdir(this.filePath.replace(/[\\/][^\\/]+$/,''),{recursive:true});
+    await mkdir(dirname(this.filePath),{recursive:true});
     try{
       const saved=JSON.parse(await readFile(this.filePath,'utf8'));
       this.items=Array.isArray(saved.items)?saved.items:[];
@@ -29,7 +29,7 @@ export class ExcludedDirectoryStore{
   }
   list(){return [...this.items].sort((a,b)=>a.path.localeCompare(b.path,'pt-BR'));}
   isExcluded(path){
-    const normalized=String(path||'').replace(/\\\\/g,'/').replace(/^\\/+|\\/+$/g,'');
+    const normalized=String(path||'').replace(/\\/g,'/').replace(/^\/+|\/+$/g,'');
     return this.items.some(item=>normalized===item.path||normalized.startsWith(item.path+'/'));
   }
   async add(value){
