@@ -1,11 +1,11 @@
 {
-  "apiUrl": "https://autoimport.apcgestor.com.br",
+  "mode": "local-library",
   "scanIntervalMs": 5000,
-  "libraryRoot": "C:\\Users\\SEU_USUARIO\\iCloudDrive\\Playmaster\\biblioteca",
+  "libraryRoot": "C:\\PlayMaster\\Biblioteca",
   "stateFile": "./data/agent-state.json",
   "folders": [
-    { "path": "C:\\PlayMaster\\Musicas", "category": "Músicas" },
-    { "path": "C:\\PlayMaster\\Comerciais", "category": "Comerciais" },
-    { "path": "C:\\PlayMaster\\Vinhetas", "category": "Vinhetas" }
+    { "path": "C:\\PlayMaster\\Entrada\\Musicas", "category": "Músicas" },
+    { "path": "C:\\PlayMaster\\Entrada\\Comerciais", "category": "Comerciais" },
+    { "path": "C:\\PlayMaster\\Entrada\\Vinhetas", "category": "Vinhetas" }
   ]
 }
