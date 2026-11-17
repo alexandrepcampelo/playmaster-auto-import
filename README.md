@@ -72,3 +72,49 @@ O workflow da branch `main` utiliza os Secrets `VPS_HOST`, `VPS_USER`, `VPS_PORT
 3. upload resumível;
 4. integração com Traffic e sincronização do Studio Air;
 5. empacotamento do agente como `.exe`.
+
+## Preparação de hospedagem externa (Cloudflare + Render)
+
+A branch `cloudflare-backend-render` contém um Blueprint `render.yaml` para preparar
+o Auto Import como serviço Docker no Render, mantendo a biblioteca e os arquivos em
+um disco persistente. Essa configuração é separada do deploy atual da VPS.
+
+### Recursos definidos no Blueprint
+
+- Runtime Docker com a imagem deste repositório e FFmpeg do Dockerfile.
+- Região Ohio e plano `1c-2g` (plano pago).
+- Disco persistente inicial de 10 GB montado em `/app/persistent`.
+- Dados, originais, processados, biblioteca, temporários e inbox direcionados ao disco.
+- Health check em `/api/health`.
+- Senhas e tokens gerados pelo Render, sem valores secretos versionados.
+- Deploy automático desativado (`autoDeployTrigger: off`) para impedir publicação
+  acidental durante a preparação.
+
+O disco persistente do Render exige serviço pago. O tamanho inicial de 10 GB pode ser
+aumentado depois, mas não reduzido. Antes de criar o serviço, confira os preços e
+dimensione o espaço para a biblioteca de áudio real.
+
+### Criar o serviço quando autorizado
+
+1. No Render, escolha **New > Blueprint** e conecte este repositório.
+2. Selecione a branch `cloudflare-backend-render` e confira o arquivo `render.yaml`.
+3. Revise o plano, região, custo e disco antes de confirmar a criação.
+4. Guarde com segurança a senha administrativa e os segredos gerados pelo Render.
+5. Mantenha o endereço `onrender.com` como origem técnica; não altere DNS do domínio
+   principal nesta etapa.
+6. Após o primeiro deploy, testar `/api/health`, login, biblioteca, upload, processamento
+   FFmpeg, streaming com HTTP Range e persistência após reinício.
+7. Somente após os testes, configurar o hostname HTTPS do serviço como
+   `AIR_API_ORIGIN` no Worker do PlayMaster Air.
+
+### Segurança e limites
+
+- O serviço web Render tem endereço público. As rotas da API exigem sessão ou token,
+  exceto o health check; não compartilhar a URL como se fosse um painel administrativo.
+- O Worker Cloudflare encaminhará as requisições same-origin, mas o hostname direto do
+  Render continuará acessível. A autenticação do backend permanece obrigatória.
+- O Blueprint não cria nem altera serviços por si só. É apenas infraestrutura declarativa
+  no GitHub; a criação e cobrança só começam quando o Blueprint for aplicado no Render.
+- O workflow `.github/workflows/render-validate.yml` executa verificações e testes, mas
+  não publica nem acessa VPS.
+- O workflow de produção antigo em `.github/workflows/deploy.yml` permanece intocado.
