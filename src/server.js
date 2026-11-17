@@ -318,7 +318,7 @@ const server=http.createServer(async(req,res)=>{
         return json(res,201,{ok:true,item,items:excludedDirectoryStore.list()});
       }catch(error){return json(res,error.statusCode||400,{error:error.message||'Não foi possível excluir o diretório.'});}
     }
-    const exclusionMatch=url.pathname.match(/^\\/api\\/catalog-exclusions\\/([^/]+)$/);
+    const exclusionMatch=url.pathname.match(/^\/api\/catalog-exclusions\/([^/]+)$/);
     if(exclusionMatch && req.method==='DELETE'){
       if(!requirePanelSession(req,res)) return;
       const item=await excludedDirectoryStore.remove(decodeURIComponent(exclusionMatch[1]));
