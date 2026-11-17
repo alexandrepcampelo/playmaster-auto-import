@@ -30,7 +30,7 @@ async function walk(directory,excluded=[]){
 }
 
 export class AutoImporter{
-  constructor({inboxDir,originalsDir,processedDir,libraryDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store,directoryStore}){
+  constructor({inboxDir,originalsDir,processedDir,libraryDir,pollIntervalMs,targetLufs,truePeakDb,silenceThresholdDb,silenceDuration,store,directoryStore,excludedDirectoryStore}){
     this.inboxDir=inboxDir;
     this.originalsDir=originalsDir;
     this.processedDir=processedDir;
@@ -39,6 +39,7 @@ export class AutoImporter{
     this.audioSettings={targetLufs,truePeakDb,silenceThresholdDb,silenceDuration};
     this.store=store;
     this.directoryStore=directoryStore;
+    this.excludedDirectoryStore=excludedDirectoryStore;
     this.known=new Map();
     this.timer=null;
     this.scanPromise=null;
@@ -107,6 +108,7 @@ export class AutoImporter{
     const pathParts=relativePath.split('/');
     const category=configuredCategory|| (pathParts.length>1?pathParts[0]:'Outros');
     const subcategory=configuredCategory?String(configuredSubcategory||''):pathParts.length>2?pathParts.slice(1,-1).join('/'):'';
+    if(this.excludedDirectoryStore?.isExcluded([category,subcategory].filter(Boolean).join('/'))) return {excluded:true};
     const digest=await checksum(filePath);
     const existing=this.store.findByChecksum(digest);
     if(existing){
