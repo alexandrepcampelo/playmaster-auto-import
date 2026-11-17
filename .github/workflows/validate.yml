@@ -52,6 +52,7 @@ jobs:
   deploy-test:
     needs: validate
     if: >-
+      false && # Enable after the VPS test bridge bootstrap is installed.
       github.event.pull_request.head.ref == 'feature/catalog-folder-hierarchy' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
