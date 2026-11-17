@@ -69,8 +69,11 @@ async function extractZip(filePath,{inboxDir,category,subcategory,maxFiles,maxEx
           expandedSize+=Number(entry.uncompressedSize)||0;
           if(count>maxFiles) throw new Error(`O ZIP excede o limite de ${maxFiles} áudios.`);
           if(expandedSize>maxExtractedBytes) throw new Error('O conteúdo descompactado excede o limite permitido.');
-          const fileName=safeFileName(basename(entryName));
-          const destination=await availablePath(categoryDir,fileName);
+          const entryParts=entryName.split('/').filter(Boolean);
+          const fileName=safeFileName(entryParts.at(-1)||basename(entryName));
+          const nestedDirectory=join(categoryDir,...entryParts.slice(0,-1));
+          await mkdir(nestedDirectory,{recursive:true});
+          const destination=await availablePath(nestedDirectory,fileName);
           const temporary=join(categoryDir,`.archive-${randomUUID()}.tmp`);
           const stream=await openEntry(zip,entry);
           let written=0;
