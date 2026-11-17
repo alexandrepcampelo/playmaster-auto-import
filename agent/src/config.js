@@ -16,7 +16,7 @@ export async function loadConfig(){
   if(!Array.isArray(input.folders) || input.folders.length===0) throw new Error('Configure ao menos uma pasta monitorada.');
   const libraryRoot=String(input.libraryRoot||'').trim()?resolve(input.libraryRoot):'';
   if(mode==='local-library'&&!libraryRoot) throw new Error('Configure libraryRoot para a biblioteca local.');
-  const apiUrl=String(input.apiUrl||'').replace(/\\/+$/,'');
+  const apiUrl=String(input.apiUrl||'').replace(/\/+$/,'');
   if(mode==='remote-upload'&&!apiUrl) throw new Error('Configure apiUrl para o modo de envio remoto.');
   return {
     mode,apiUrl,apiToken,libraryRoot,
