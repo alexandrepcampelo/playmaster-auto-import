@@ -457,3 +457,15 @@ main.workspace{width:auto;max-width:none;margin:0;padding:26px clamp(16px,2.5vw,
 .directory-custom-icon{display:block;width:24px;height:24px;object-fit:contain}.directory-icon-picker{margin-top:7px}.directory-icon-picker input{cursor:default}.directory-icon-file{background:rgba(24,116,154,.08)}.directory-browser-entry.directory-icon-file span:first-child{font-size:17px}
 
 .download-audio-button{display:inline-grid;place-items:center;flex:0 0 23px;width:23px;height:23px;border:1px solid rgba(43,178,224,.38);border-radius:5px;background:#0b2b42;color:#73d8f2;text-decoration:none;font-size:16px;font-weight:800;line-height:1}.download-audio-button:hover{border-color:#36d0f2;background:#10415b;color:#e9faff}.library-name-wrap{min-width:0}
+
+.exclude-directory-form{padding:16px;border:1px solid rgba(43,178,224,.22);border-radius:9px;background:rgba(3,17,29,.38);display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.exclude-directory-form label{font-size:11px;color:#c9e0ed;font-weight:700}
+.exclude-directory-controls{display:flex;gap:8px;align-items:center}
+.exclude-directory-controls input{flex:1;min-width:0;height:38px;padding:0 12px;border:1px solid rgba(43,178,224,.32);border-radius:7px;background:#061a2b;color:#e9f7ff;outline:none}
+.exclude-directory-controls input:focus{border-color:#25c5f1}
+.exclude-directory-form>small{font-size:10px;color:#86a9bd}
+.excluded-directory-list{display:flex;flex-direction:column;gap:7px;margin:14px 0}
+.excluded-directory-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(43,178,224,.16);border-radius:8px;background:rgba(3,17,29,.35)}
+.excluded-directory-row strong{flex:1;min-width:0;overflow-wrap:anywhere;font-size:11px;color:#d7edf8}
+.excluded-folder-icon{color:#9db4c4;font-size:17px}
+@media(max-width:640px){.exclude-directory-controls{align-items:stretch;flex-direction:column}.exclude-directory-controls button{width:100%;min-height:38px}.excluded-directory-row{align-items:flex-start;flex-wrap:wrap}.excluded-directory-row button{margin-left:auto}}

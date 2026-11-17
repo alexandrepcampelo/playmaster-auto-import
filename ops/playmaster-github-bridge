@@ -3,6 +3,14 @@ set -euo pipefail
 
 # Restricted SSH forced command. Only fixed, scoped operations are accepted.
 case "${SSH_ORIGINAL_COMMAND:-}" in
+  action:test-deploy:*)
+    COMMIT="${SSH_ORIGINAL_COMMAND#action:test-deploy:}"
+    if [[ ! "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+      echo "Invalid commit SHA" >&2
+      exit 64
+    fi
+    sudo -n /usr/local/sbin/playmaster-test-autoimport-deploy "$COMMIT"
+    ;;
   action:test-status)
     sudo -n /usr/bin/docker ps --filter name=playmaster-auto-import-test --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
     ;;

@@ -86,10 +86,8 @@ function directoryIconTemplate(directory){
   return `<span class="catalog-directory-icon icon-${escapeText(directory.icon||'folder')}">${glyphs[directory.icon]||'▰'}</span>`;
 }
 function folderTreeTemplate(){
-  const configured=catalogDirectories.filter(item=>item.type==='folder'&&item.active);
-  const configuredAll=catalogDirectories.filter(item=>item.type==='folder');
-  const unmanaged=currentItems.map(item=>item.category||'Outros').filter(category=>!configuredAll.some(item=>item.name===category));
-  const categories=[...new Set([...configured.map(item=>item.name),...unmanaged])];
+  const imported=currentItems.map(item=>item.category||'Outros');
+  const categories=[...new Set([...defaultLibraryFolders,...imported])];
   if(!selectedFolderCategory) selectedFolderCategory=categories[0]||'Músicas';
   if(!categories.includes(selectedFolderCategory)){
     selectedFolderCategory=categories[0]||'Músicas';
@@ -97,22 +95,27 @@ function folderTreeTemplate(){
   }
   return categories.map(category=>{
     const selected=selectedFolderCategory===category&&!selectedFolderSubcategory;
-    const directory=configured.find(item=>item.name===category);
-    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${directory?directoryIconTemplate(directory):categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
+    return `<button class="folder-select ${selected?'active':''}" type="button" data-folder-category="${escapeText(category)}">${categoryIcon(category)}<span>${escapeText(category)}</span></button>`;
   }).join('');
 }
 
 function librarySubfoldersTemplate(){
   if(currentLibraryView==='trash') return '';
-  const parent=catalogDirectories.find(item=>item.type==='folder'&&item.name===selectedFolderCategory);
-  const configured=catalogDirectories.filter(item=>item.type==='subfolder'&&item.parentId===parent?.id&&item.active).map(item=>item.name);
-  const disabledSubfolders=catalogDirectories.filter(item=>item.type==='subfolder'&&item.parentId===parent?.id&&!item.active).map(item=>item.name);
-  const existing=currentItems.filter(item=>(item.category||'Outros')===selectedFolderCategory&&item.subcategory&&!disabledSubfolders.includes(item.subcategory)).map(item=>item.subcategory);
-  const subcategories=[...new Set([...configured,...existing])].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  if(!subcategories.length) return '';
-  return `<div class="library-subfolders" aria-label="Subpastas de ${escapeText(selectedFolderCategory)}">
+  const paths=new Set();
+  for(const item of currentItems){
+    if((item.category||'Outros')!==selectedFolderCategory||!item.subcategory) continue;
+    const parts=String(item.subcategory).split('/').filter(Boolean);
+    for(let index=0;index<parts.length;index++) paths.add(parts.slice(0,index+1).join('/'));
+  }
+  if(!paths.size) return '';
+  const subcategories=[...paths].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  return `<div class="library-subfolders" aria-label="Hierarquia de pastas de ${escapeText(selectedFolderCategory)}">
     <button class="subcategory-chip ${selectedFolderSubcategory?'':'active'}" type="button" data-library-subcategory="">Todas</button>
-    ${subcategories.map(subcategory=>`<button class="subcategory-chip ${selectedFolderSubcategory===subcategory?'active':''}" type="button" data-library-subcategory="${escapeText(subcategory)}">${escapeText(subcategory)}</button>`).join('')}
+    ${subcategories.map(path=>{
+      const depth=path.split('/').length-1;
+      const label=path.split('/').at(-1);
+      return `<button class="subcategory-chip nested-subcategory-chip ${selectedFolderSubcategory===path?'active':''}" style="margin-left:${depth*18}px" type="button" data-library-subcategory="${escapeText(path)}" title="${escapeText(path)}"><span aria-hidden="true">↳</span> ${escapeText(label)}</button>`;
+    }).join('')}
   </div>`;
 }
 
@@ -159,12 +162,13 @@ function renderLibrary(){
   const query=$('#librarySearch').value.trim().toLocaleLowerCase('pt-BR');
   const filtered=currentItems.filter(item=>{
     const category=item.category||'Outros';
-    if(selectedFolderCategory&&category!==selectedFolderCategory) return false;
-    if(selectedFolderSubcategory&&(item.subcategory||'')!==selectedFolderSubcategory) return false;
+    const subcategory=String(item.subcategory||'');
+    if(!query&&selectedFolderCategory&&category!==selectedFolderCategory) return false;
+    if(!query&&selectedFolderSubcategory&&subcategory!==selectedFolderSubcategory&&!subcategory.startsWith(selectedFolderSubcategory+'/')) return false;
     if(!query) return true;
     return [item.title,item.fileName,item.artist,item.category,item.subcategory,item.id].some(value=>String(value||'').toLocaleLowerCase('pt-BR').includes(query));
   });
-  const folderTitle=selectedFolderSubcategory||selectedFolderCategory||'Biblioteca';
+  const folderTitle=query?'Resultados da busca':selectedFolderSubcategory||selectedFolderCategory||'Biblioteca';
   $('#libraryFolderTitle').textContent=folderTitle;
   const headers=['Nome','Intérpretes','Tempo','Data da adição','Editor','Editar','Excluir'];
   $('#libraryCount').textContent=`${filtered.length} arquivo(s)`;
@@ -251,6 +255,7 @@ function sendFile(file,category,subcategory,onProgress,archive=false){
     request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
     request.setRequestHeader('x-category-b64',encodeMetadata(category));
     if(subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
+    if(!archive && importMode==='folder' && file.webkitRelativePath) request.setRequestHeader('x-relative-path-b64',encodeMetadata(file.webkitRelativePath));
     request.upload.onprogress=event=>{ if(event.lengthComputable) onProgress(Math.round((event.loaded/event.total)*100)); };
     request.onload=()=>{
       let result={};
@@ -270,14 +275,17 @@ function selectImportMode(mode){
   input.value='';
   input.removeAttribute('webkitdirectory');
   input.removeAttribute('directory');
+  const categoryField=$('#importCategory').closest('label');
+  if(categoryField) categoryField.hidden=mode==='folder';
+  $('#importSubcategoryField').hidden=mode==='folder';
   if(mode==='folder'){
     input.multiple=true;
     input.accept='audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg';
     input.setAttribute('webkitdirectory','');
     input.setAttribute('directory','');
     $('#dropTitle').textContent='Escolher uma pasta de áudio';
-    $('#dropHint').textContent='Os áudios compatíveis das subpastas também serão incluídos';
-    $('#dropNote').textContent='Arquivos que não forem de áudio serão ignorados';
+    $('#dropHint').textContent='A pasta escolhida será a pasta principal do Catálogo; todas as subpastas serão preservadas';
+    $('#dropNote').textContent='A estrutura original será mantida automaticamente; arquivos que não forem de áudio serão ignorados';
   }else if(mode==='zip'){
     input.multiple=false;
     input.accept='.zip,application/zip,application/x-zip-compressed';
@@ -299,18 +307,14 @@ async function refresh(){
   button.disabled=true;
   try{
     const endpoint=currentLibraryView==='trash'?'/api/trash?limit=100':'/api/imports?limit=500';
-    const [statusResponse,itemsResponse,directoryResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint),fetch('/api/catalog-directories')]);
+    const [statusResponse,itemsResponse]=await Promise.all([fetch('/api/status'),fetch(endpoint)]);
     if(statusResponse.status===401 || itemsResponse.status===401){
       showLogin('Sua sessão expirou. Entre novamente.');
       return;
     }
-    if(!statusResponse.ok || !itemsResponse.ok || !directoryResponse.ok) throw new Error('Servidor indisponível');
+    if(!statusResponse.ok || !itemsResponse.ok) throw new Error('Servidor indisponível');
     const status=await statusResponse.json();
     const {items}=await itemsResponse.json();
-    const directoryData=await directoryResponse.json();
-    catalogDirectories=directoryData.items||[];
-    if(typeof renderDirectorySettings==='function'&&!$('#settingsView').hidden) renderDirectorySettings();
-    if(typeof refreshDirectorySelects==='function') refreshDirectorySelects();
     $('#total').textContent=status.counts.total;
     $('#processing').textContent=status.counts.processing+status.counts.received;
     $('#ready').textContent=status.counts.ready;
@@ -422,6 +426,25 @@ function closeManage(){
   document.body.classList.remove('modal-open');
 }
 
+let excludedDirectoryItems=[];
+function renderExcludedDirectories(){
+  const target=$('#excludedDirectoryList');
+  if(!excludedDirectoryItems.length){
+    target.innerHTML='<p class="empty">Nenhum diretório excluído.</p>';
+    return;
+  }
+  target.innerHTML=excludedDirectoryItems.map(item=>`<div class="excluded-directory-row"><span class="excluded-folder-icon">▰</span><strong>${escapeText(item.path)}</strong><button class="catalog-action" type="button" data-restore-exclusion="${escapeText(item.id)}">Reativar</button></div>`).join('');
+}
+async function loadExcludedDirectories(){
+  const target=$('#excludedDirectoryList');
+  if(!target) return;
+  target.innerHTML='<p class="empty">Carregando diretórios excluídos...</p>';
+  try{
+    const result=await actionRequest('/api/catalog-exclusions');
+    excludedDirectoryItems=result.items||[];
+    renderExcludedDirectories();
+  }catch(error){target.innerHTML=`<p class="empty">${escapeText(error.message)}</p>`;}
+}
 async function actionRequest(url,options={}){
   const response=await fetch(url,options);
   let result={};
@@ -543,6 +566,30 @@ $('#librarySubfolders').addEventListener('click',event=>{
   selectedFolderSubcategory=select.dataset.librarySubcategory||'';
   renderLibrary();
 });
+$('#excludeDirectoryForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled=true;
+  $('#excludeDirectoryError').textContent='';
+  try{
+    const path=$('#excludeDirectoryPath').value.trim();
+    await actionRequest('/api/catalog-exclusions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({path})});
+    $('#excludeDirectoryPath').value='';
+    await loadExcludedDirectories();
+    await refresh();
+  }catch(error){$('#excludeDirectoryError').textContent=error.message;}
+  finally{button.disabled=false;}
+});
+$('#excludedDirectoryList').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-restore-exclusion]');
+  if(!button) return;
+  button.disabled=true;
+  try{
+    await actionRequest('/api/catalog-exclusions/'+encodeURIComponent(button.dataset.restoreExclusion),{method:'DELETE'});
+    await loadExcludedDirectories();
+    await refresh();
+  }catch(error){alert(error.message);button.disabled=false;}
+});
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
 $('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
@@ -648,6 +695,7 @@ function navigateToView(view){
   document.querySelectorAll('.nav-subitem[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
   $('#pageTitle').textContent=pageTitles[view]||'PlayMaster Auto Import';
   $('#appView').classList.remove('sidebar-open');
+  if(view==='settings') void loadExcludedDirectories();
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>navigateToView(button.dataset.view)));
 
