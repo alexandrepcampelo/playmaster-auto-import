@@ -10,7 +10,7 @@ import { ImportStore } from './store.js';
 import { CatalogDirectoryStore } from './catalog-directories.js';
 import { AutoImporter } from './importer.js';
 import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from './auth.js';
-import { receiveUpload } from './upload.js';
+import { receiveUpload,safeSubcategory } from './upload.js';
 import { receiveArchive } from './archive-upload.js';
 import { parseLibraryQuery,publicLibraryItem,validateAcknowledgement } from './library.js';
 import { createWeatherService } from './weather.js';
@@ -373,7 +373,7 @@ const server=http.createServer(async(req,res)=>{
         if(!audioCategories.has(category)&&!directoryStore.list().some(item=>item.type==='folder'&&item.name===category)) return json(res,400,{error:'Pasta de áudio inválida.'});
         patch.category=category;
       }
-      if(Object.hasOwn(input,'subcategory')) patch.subcategory=String(input.subcategory||'').normalize('NFC').replace(/[\\/<>:"|?*\x00-\x1f]/g,'-').trim().slice(0,80);
+      if(Object.hasOwn(input,'subcategory')) patch.subcategory=safeSubcategory(input.subcategory);
       else if(patch.category && !directoryStore.list().some(item=>item.type==='subfolder'&&directoryStore.find(item.parentId)?.name===patch.category)) patch.subcategory='';
       for(const [key,max] of [['title',200],['artist',200],['album',200],['year',12]]){
         if(Object.hasOwn(input,key)) patch[key]=String(input[key]??'').trim().slice(0,max);
