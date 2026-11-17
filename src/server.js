@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
 import { ImportStore } from './store.js';
 import { CatalogDirectoryStore } from './catalog-directories.js';
+import { ExcludedDirectoryStore } from './excluded-directories.js';
 import { AutoImporter } from './importer.js';
 import { LoginLimiter,clearSessionCookie,createSession,parseCookies,secureEqual,sessionCookie,verifySession } from './auth.js';
 import { receiveUpload,safeSubcategory } from './upload.js';
@@ -20,7 +21,9 @@ const store=new ImportStore(config);
 await store.init();
 const directoryStore=new CatalogDirectoryStore(config);
 await directoryStore.init();
-const importer=new AutoImporter({...config,store,directoryStore});
+const excludedDirectoryStore=new ExcludedDirectoryStore(config);
+await excludedDirectoryStore.init();
+const importer=new AutoImporter({...config,store,directoryStore,excludedDirectoryStore});
 await importer.init();
 const loginLimiter=new LoginLimiter();
 const weatherService=createWeatherService({apiKey:config.weatherApiKey,location:config.weatherLocation});
@@ -303,6 +306,24 @@ const server=http.createServer(async(req,res)=>{
       const online=Boolean(lastSeen&&Date.now()-lastSeen<30000);
       return json(res,200,{...localAgentStatus,connected:online,status:online?localAgentStatus.status:'disconnected'});
     }
+    if(url.pathname==='/api/catalog-exclusions' && req.method==='GET'){
+      if(!requirePanelSession(req,res)) return;
+      return json(res,200,{items:excludedDirectoryStore.list()});
+    }
+    if(url.pathname==='/api/catalog-exclusions' && req.method==='POST'){
+      if(!requirePanelSession(req,res)) return;
+      const input=await body(req);
+      try{
+        const item=await excludedDirectoryStore.add(input.path);
+        return json(res,201,{ok:true,item,items:excludedDirectoryStore.list()});
+      }catch(error){return json(res,error.statusCode||400,{error:error.message||'Não foi possível excluir o diretório.'});}
+    }
+    const exclusionMatch=url.pathname.match(/^\\/api\\/catalog-exclusions\\/([^/]+)$/);
+    if(exclusionMatch && req.method==='DELETE'){
+      if(!requirePanelSession(req,res)) return;
+      const item=await excludedDirectoryStore.remove(decodeURIComponent(exclusionMatch[1]));
+      return item?json(res,200,{ok:true,item,items:excludedDirectoryStore.list()}):json(res,404,{error:'Exclusão não encontrada.'});
+    }
     if(url.pathname==='/api/catalog-directories' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
       return json(res,200,{items:directoryStore.list(),inboxDir:config.inboxDir,libraryBasePath:config.libraryDir,destinationMode:'vps'});
@@ -357,7 +378,9 @@ const server=http.createServer(async(req,res)=>{
     });
     if(url.pathname==='/api/imports' && req.method==='GET'){
       if(!requireReadAccess(req,res)) return;
-      return json(res,200,{items:store.list(url.searchParams.get('limit'),url.searchParams.get('offset'),url.searchParams.get('q'))});
+      const items=store.list(url.searchParams.get('limit'),url.searchParams.get('offset'),url.searchParams.get('q'))
+        .filter(item=>!excludedDirectoryStore.isExcluded([item.category,item.subcategory].filter(Boolean).join('/')));
+      return json(res,200,{items});
     }
     if(url.pathname==='/api/trash' && req.method==='GET'){
       if(!requirePanelSession(req,res)) return;
