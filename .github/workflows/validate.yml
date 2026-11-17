@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           install -m 700 -d ~/.ssh
-          printf '%s\\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
@@ -74,13 +74,13 @@ jobs:
           set -euo pipefail
           TEST_PATH=/opt/playmaster-auto-import-test
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$TEST_PATH'"
-          rsync -az --delete \\
-            --exclude '.git/' \\
-            --exclude '.env' \\
-            --exclude 'data/' \\
-            --exclude 'storage/' \\
-            --exclude 'docker-compose.test.yml' \\
-            -e "ssh -p $VPS_PORT" \\
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.env' \
+            --exclude 'data/' \
+            --exclude 'storage/' \
+            --exclude 'docker-compose.test.yml' \
+            -e "ssh -p $VPS_PORT" \
             ./ "$VPS_USER@$VPS_HOST:$TEST_PATH/"
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$TEST_PATH' && docker compose -f docker-compose.test.yml up -d --build --remove-orphans"
           for attempt in $(seq 1 30); do
