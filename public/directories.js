@@ -68,6 +68,7 @@ function refreshDirectorySelects(){
   parent.innerHTML=roots.map(item=>`<option value="${directoryEscape(item.id)}">${directoryEscape(item.name)}</option>`).join('')+'<option value="__new_parent__">＋ Nova pasta...</option>';
   if(roots.some(item=>item.id===previous))parent.value=previous;else if(previous==='__new_parent__')parent.value=previous;
  }
+ if(typeof refreshImportSubcategoryOptions==='function')refreshImportSubcategoryOptions();
 }
 async function refreshAgentSyncStatus(){
  const wrap=$dir('agentSyncStatus');if(!wrap)return;
