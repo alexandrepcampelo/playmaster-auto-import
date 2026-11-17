@@ -426,6 +426,25 @@ function closeManage(){
   document.body.classList.remove('modal-open');
 }
 
+let excludedDirectoryItems=[];
+function renderExcludedDirectories(){
+  const target=$('#excludedDirectoryList');
+  if(!excludedDirectoryItems.length){
+    target.innerHTML='<p class="empty">Nenhum diretório excluído.</p>';
+    return;
+  }
+  target.innerHTML=excludedDirectoryItems.map(item=>`<div class="excluded-directory-row"><span class="excluded-folder-icon">▰</span><strong>${escapeText(item.path)}</strong><button class="catalog-action" type="button" data-restore-exclusion="${escapeText(item.id)}">Reativar</button></div>`).join('');
+}
+async function loadExcludedDirectories(){
+  const target=$('#excludedDirectoryList');
+  if(!target) return;
+  target.innerHTML='<p class="empty">Carregando diretórios excluídos...</p>';
+  try{
+    const result=await actionRequest('/api/catalog-exclusions');
+    excludedDirectoryItems=result.items||[];
+    renderExcludedDirectories();
+  }catch(error){target.innerHTML=`<p class="empty">${escapeText(error.message)}</p>`;}
+}
 async function actionRequest(url,options={}){
   const response=await fetch(url,options);
   let result={};
@@ -547,6 +566,30 @@ $('#librarySubfolders').addEventListener('click',event=>{
   selectedFolderSubcategory=select.dataset.librarySubcategory||'';
   renderLibrary();
 });
+$('#excludeDirectoryForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled=true;
+  $('#excludeDirectoryError').textContent='';
+  try{
+    const path=$('#excludeDirectoryPath').value.trim();
+    await actionRequest('/api/catalog-exclusions',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({path})});
+    $('#excludeDirectoryPath').value='';
+    await loadExcludedDirectories();
+    await refresh();
+  }catch(error){$('#excludeDirectoryError').textContent=error.message;}
+  finally{button.disabled=false;}
+});
+$('#excludedDirectoryList').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-restore-exclusion]');
+  if(!button) return;
+  button.disabled=true;
+  try{
+    await actionRequest('/api/catalog-exclusions/'+encodeURIComponent(button.dataset.restoreExclusion),{method:'DELETE'});
+    await loadExcludedDirectories();
+    await refresh();
+  }catch(error){alert(error.message);button.disabled=false;}
+});
 $('#refresh').addEventListener('click',refresh);
 $('#openImport').addEventListener('click',openImport);
 $('#openCdImport').addEventListener('click',()=>{openImport();$('#importTitle').textContent='Importar faixas de CD';$('#importDescription').textContent='Selecione arquivos de áudio extraídos do CD para adicioná-los à Biblioteca.';$('#cdImportNote').hidden=false;});
@@ -652,6 +695,7 @@ function navigateToView(view){
   document.querySelectorAll('.nav-subitem[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));
   $('#pageTitle').textContent=pageTitles[view]||'PlayMaster Auto Import';
   $('#appView').classList.remove('sidebar-open');
+  if(view==='settings') void loadExcludedDirectories();
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>navigateToView(button.dataset.view)));
 
