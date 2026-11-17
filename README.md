@@ -118,3 +118,19 @@ dimensione o espaço para a biblioteca de áudio real.
 - O workflow `.github/workflows/render-validate.yml` executa verificações e testes, mas
   não publica nem acessa VPS.
 - O workflow de produção antigo em `.github/workflows/deploy.yml` permanece intocado.
+
+### Atenção: limite de upload no caminho Cloudflare
+
+O Auto Import aceita até 1 GB por arquivo pela configuração atual. Porém, quando o
+upload passa pelo domínio proxied/Worker do Cloudflare, o limite máximo do corpo da
+requisição depende do plano da zona: Free/Pro 100 MB, Business 200 MB e Enterprise
+até 5 GB (sujeito à configuração da conta). Portanto, o limite de 1 GB do backend não
+significa que uploads de 1 GB funcionarão pelo Worker.
+
+Antes de liberar importação de arquivos grandes, escolher e testar uma solução:
+- upload direto para uma origem fora do proxy Cloudflare com autorização temporária e
+  CORS restrito ao domínio do Air; ou
+- upload multipart/resumível para object storage (por exemplo, R2), seguido de
+  confirmação e processamento no backend.
+
+Não reduzir silenciosamente o limite de upload do produto sem decisão funcional.
