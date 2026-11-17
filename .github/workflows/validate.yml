@@ -64,32 +64,18 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      - name: Deploy only to test directory
+      - name: Deploy only to isolated test VPS through restricted bridge
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
         shell: bash
         run: |
           set -euo pipefail
-          TEST_PATH=/opt/playmaster-auto-import-test
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$TEST_PATH'"
-          rsync -az --delete \
-            --exclude '.git/' \
-            --exclude '.env' \
-            --exclude 'data/' \
-            --exclude 'storage/' \
-            --exclude 'docker-compose.test.yml' \
-            -e "ssh -p $VPS_PORT" \
-            ./ "$VPS_USER@$VPS_HOST:$TEST_PATH/"
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$TEST_PATH' && docker compose -f docker-compose.test.yml up -d --build --remove-orphans"
-          for attempt in $(seq 1 30); do
-            if ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "curl -fsS http://127.0.0.1:3602/api/health >/dev/null"; then
-              echo "TEST_HEALTH: passed"
-              exit 0
-            fi
-            sleep 3
-          done
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "cd '$TEST_PATH' && docker compose -f docker-compose.test.yml logs --tail=100"
-          echo "TEST_HEALTH: failed" >&2
-          exit 1
+          ssh -p "$VPS_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=10 \
+            "$VPS_USER@$VPS_HOST" "action:test-deploy:$COMMIT_SHA"
