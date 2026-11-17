@@ -231,11 +231,27 @@ function renderUploadQueue(states={}){
   }).join(''):'<p class="queue-empty">Os arquivos escolhidos aparecerão aqui.</p>';
 }
 
+function refreshImportSubcategoryOptions(reset=false){
+  const select=$('#importSubcategory');
+  const field=$('#importSubcategoryField');
+  if(!select||!field) return;
+  const category=$('#importCategory').value;
+  const parent=catalogDirectories.find(item=>item.type==='folder'&&item.active&&item.name===category);
+  const children=catalogDirectories
+    .filter(item=>item.type==='subfolder'&&item.active&&item.parentId===parent?.id)
+    .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  const previous=reset?'':select.value;
+  select.innerHTML='<option value="">Sem subpasta</option>'+children.map(item=>'<option value="'+escapeText(item.name)+'">'+escapeText(item.name)+'</option>').join('');
+  if(children.some(item=>item.name===previous)) select.value=previous;
+  field.hidden=children.length===0;
+}
+
 function openImport(){
   $('#importTitle').textContent='Adicionar áudios à Biblioteca';
   $('#importDescription').textContent='Selecione os arquivos e informe a pasta de destino.';
   $('#cdImportNote').hidden=true;
   selectImportMode('files');
+  refreshImportSubcategoryOptions();
   $('#importModal').hidden=false;
   document.body.classList.add('modal-open');
 }
@@ -314,6 +330,7 @@ async function refresh(){
     catalogDirectories=directoryData.items||[];
     if(typeof renderDirectorySettings==='function'&&!$('#settingsView').hidden) renderDirectorySettings();
     if(typeof refreshDirectorySelects==='function') refreshDirectorySelects();
+    refreshImportSubcategoryOptions();
     $('#total').textContent=status.counts.total;
     $('#processing').textContent=status.counts.processing+status.counts.received;
     $('#ready').textContent=status.counts.ready;
@@ -640,7 +657,7 @@ $('#cancelImport').addEventListener('click',closeImport);
 $('#importModal').addEventListener('click',event=>{ if(event.target===event.currentTarget) closeImport(); });
 document.querySelectorAll('.source-tab').forEach(button=>button.addEventListener('click',()=>selectImportMode(button.dataset.mode)));
 $('#importFiles').addEventListener('change',()=>renderUploadQueue());
-$('#importCategory').addEventListener('change',()=>{const hasChildren=catalogDirectories.some(item=>item.type==='subfolder'&&item.active&&catalogDirectories.find(parent=>parent.id===item.parentId)?.name===$('#importCategory').value);$('#importSubcategoryField').hidden=!hasChildren&&!['Hora Certa','Temperatura'].includes($('#importCategory').value);if($('#importSubcategoryField').hidden)$('#importSubcategory').value='';});
+$('#importCategory').addEventListener('change',()=>refreshImportSubcategoryOptions(true));
 $('#importForm').addEventListener('submit',async event=>{
   event.preventDefault();
   const files=selectedFiles();
