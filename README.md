@@ -30,7 +30,7 @@ Coloque arquivos `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a` ou `.ogg` em `storage/i
 
 O serviço recebe o arquivo em `storage/inbox`, gera um ID sequencial, calcula SHA-256, preserva o original em `storage/originals` e processa uma cópia. O MP3 final é publicado na Biblioteca permanente em `storage/library/Categoria/Subcategoria`, enquanto os registros ficam em `data/imports.json`. Todos esses diretórios são volumes persistentes do VPS.
 
-As categorias e subcategorias são cadastradas pelo painel e criadas fisicamente dentro de `storage/library`. A Biblioteca do VPS não depende do iCloud nem de um computador Windows ligado.
+A hierarquia de pastas é criada automaticamente a partir da pasta selecionada na importação. O nome da pasta escolhida forma a categoria principal e cada nível interno é preservado como subpasta, tanto nos arquivos físicos quanto nos registros enviados ao Studio Air. A Biblioteca do VPS não depende do iCloud nem de um computador Windows ligado.
 
 ## Processamento de áudio
 
@@ -46,7 +46,7 @@ O endpoint autenticado `GET /api/weather` consulta as condições atuais e máxi
 
 O endpoint `POST /api/uploads` recebe o conteúdo binário do áudio e exige `Authorization: Bearer SEU_TOKEN`. O nome do arquivo e a categoria são enviados em Base64 nos cabeçalhos `x-file-name-b64` e `x-category-b64`. O servidor valida o formato, limita o tamanho, calcula o SHA-256, evita duplicidades, preserva o original e devolve o ID definitivo.
 
-Usuários autenticados podem importar um ou vários áudios, uma pasta completa com subpastas ou um pacote ZIP diretamente pelo painel web. A categoria é escolhida antes do envio e o progresso é mostrado por arquivo.
+Usuários autenticados podem importar um ou vários áudios, uma pasta completa com subpastas ou um pacote ZIP diretamente pelo painel web. Ao importar uma pasta, sua hierarquia é preservada automaticamente no Catálogo; em ZIPs, os diretórios internos também são mantidos. O progresso é mostrado por arquivo.
 
 Pacotes ZIP são extraídos em área temporária, aceitam somente os formatos de áudio suportados e possuem limites de quantidade e tamanho descompactado. Caminhos absolutos ou tentativas de sair da pasta autorizada são bloqueados. Os limites são configurados por `MAX_ARCHIVE_FILES` e `MAX_EXTRACTED_BYTES`.
 
