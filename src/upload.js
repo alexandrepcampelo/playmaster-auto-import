@@ -38,8 +38,10 @@ export function safeRelativeAudioPath(value,fileName){
   const parts=raw.split('/').filter(Boolean);
   if(parts.length<2) return '';
   if(parts.some(part=>part==='.'||part==='..'||/^[a-z]:$/i.test(part))) throw new Error('O caminho relativo do áudio não é permitido.');
-  // The first component is the folder selected in the browser; keep its name as the catalog root.
-  return parts.map(part=>part.normalize('NFC').replace(/[\\u0000-\\u001f\\u007f<>:"|?*]/g,'-').replace(/\\.+$/,'').trim().slice(0,120)).filter(Boolean).join('/');
+  const safeParts=parts.map(part=>part.normalize('NFC').replace(/[\u0000-\u001f\u007f<>:"|?*]/g,'-').replace(/\.+$/,'').trim().slice(0,120)).filter(Boolean);
+  const result=safeParts.join('/');
+  if(!result||result.length>1000) throw new Error('O caminho relativo do áudio é inválido ou muito longo.');
+  return result;
 }
 
 async function availablePath(directory,fileName){
