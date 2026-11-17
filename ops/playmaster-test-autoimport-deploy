@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+COMMIT="${1:-}"
+TEST_PATH="/opt/playmaster-auto-import-test"
+REPOSITORY="alexandrepcampelo/playmaster-auto-import"
+ARCHIVE_URL="https://codeload.github.com/${REPOSITORY}/tar.gz/${COMMIT}"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+if [[ "$(id -u)" -ne 0 ]]; then
+  echo "TEST_DEPLOY_MUST_RUN_AS_ROOT" >&2
+  exit 1
+fi
+if [[ ! "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "INVALID_COMMIT_SHA" >&2
+  exit 2
+fi
+if [[ ! -d "$TEST_PATH" || ! -f "$TEST_PATH/docker-compose.test.yml" ]]; then
+  echo "TEST_ENVIRONMENT_NOT_FOUND: $TEST_PATH/docker-compose.test.yml" >&2
+  exit 3
+fi
+if ! grep -q 'container_name: playmaster-auto-import-test' "$TEST_PATH/docker-compose.test.yml"; then
+  echo "TEST_COMPOSE_CONTAINER_NAME_MISMATCH" >&2
+  exit 4
+fi
+
+command -v curl >/dev/null
+command -v tar >/dev/null
+command -v rsync >/dev/null
+mkdir -p "$TMP_DIR/source"
+curl --fail --silent --show-error --location "$ARCHIVE_URL" -o "$TMP_DIR/source.tar.gz"
+tar -xzf "$TMP_DIR/source.tar.gz" -C "$TMP_DIR/source" --strip-components=1
+
+# Keep test-only state, credentials and the local test compose file untouched.
+rsync -a --delete \
+  --exclude '.git/' \
+  --exclude '.env' \
+  --exclude 'data/' \
+  --exclude 'storage/' \
+  --exclude 'docker-compose.test.yml' \
+  "$TMP_DIR/source/" "$TEST_PATH/"
+
+cd "$TEST_PATH"
+docker compose -f docker-compose.test.yml config -q
+docker compose -f docker-compose.test.yml up -d --build --remove-orphans
+
+for attempt in $(seq 1 30); do
+  if curl --connect-timeout 3 --max-time 8 --fail --silent http://127.0.0.1:3602/api/health >/dev/null; then
+    echo "TEST_DEPLOY_OK: commit=$COMMIT"
+    echo "PRODUCTION: untouched"
+    echo "TEST_DATA: preserved"
+    exit 0
+  fi
+  sleep 3
+done
+
+docker compose -f docker-compose.test.yml logs --tail=100
+echo "TEST_HEALTH_FAILED" >&2
+exit 5
