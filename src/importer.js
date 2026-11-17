@@ -106,7 +106,7 @@ export class AutoImporter{
     this.known.set(filePath,signature);
     const pathParts=relativePath.split('/');
     const category=configuredCategory|| (pathParts.length>1?pathParts[0]:'Outros');
-    const subcategory=configuredCategory?String(configuredSubcategory||''):pathParts.length>2?pathParts[1]:'';
+    const subcategory=configuredCategory?String(configuredSubcategory||''):pathParts.length>2?pathParts.slice(1,-1).join('/'):'';
     const digest=await checksum(filePath);
     const existing=this.store.findByChecksum(digest);
     if(existing){
