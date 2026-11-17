@@ -251,6 +251,7 @@ function sendFile(file,category,subcategory,onProgress,archive=false){
     request.setRequestHeader('x-file-name-b64',encodeMetadata(file.name));
     request.setRequestHeader('x-category-b64',encodeMetadata(category));
     if(subcategory) request.setRequestHeader('x-subcategory-b64',encodeMetadata(subcategory));
+    if(!archive && importMode==='folder' && file.webkitRelativePath) request.setRequestHeader('x-relative-path-b64',encodeMetadata(file.webkitRelativePath));
     request.upload.onprogress=event=>{ if(event.lengthComputable) onProgress(Math.round((event.loaded/event.total)*100)); };
     request.onload=()=>{
       let result={};
@@ -270,14 +271,17 @@ function selectImportMode(mode){
   input.value='';
   input.removeAttribute('webkitdirectory');
   input.removeAttribute('directory');
+  const categoryField=$('#importCategory').closest('label');
+  if(categoryField) categoryField.hidden=mode==='folder';
+  $('#importSubcategoryField').hidden=mode==='folder';
   if(mode==='folder'){
     input.multiple=true;
     input.accept='audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg';
     input.setAttribute('webkitdirectory','');
     input.setAttribute('directory','');
     $('#dropTitle').textContent='Escolher uma pasta de áudio';
-    $('#dropHint').textContent='Os áudios compatíveis das subpastas também serão incluídos';
-    $('#dropNote').textContent='Arquivos que não forem de áudio serão ignorados';
+    $('#dropHint').textContent='A pasta escolhida será a pasta principal do Catálogo; todas as subpastas serão preservadas';
+    $('#dropNote').textContent='A estrutura original será mantida automaticamente; arquivos que não forem de áudio serão ignorados';
   }else if(mode==='zip'){
     input.multiple=false;
     input.accept='.zip,application/zip,application/x-zip-compressed';
