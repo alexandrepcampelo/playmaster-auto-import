@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/validate.yml'
+      - '.github/workflows/deploy-test.yml'
 
 permissions:
   contents: read
