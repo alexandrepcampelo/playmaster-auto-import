@@ -1,0 +1,21 @@
+name: Validate local library agent
+on:
+  push:
+    branches: [local-library-mode]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: npm
+      - run: npm ci
+      - name: Check agent syntax
+        run: npm run check
+      - name: Test agent state and local library copy
+        run: node --test test/agent-state.test.js test/local-library.test.js
