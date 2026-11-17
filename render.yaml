@@ -1,0 +1,59 @@
+services:
+  - type: web
+    name: playmaster-auto-import
+    runtime: docker
+    region: ohio
+    plan: 1c-2g
+    branch: cloudflare-backend-render
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 120
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: DATA_DIR
+        value: /app/persistent/data
+      - key: INBOX_DIR
+        value: /app/persistent/storage/inbox
+      - key: LIBRARY_DIR
+        value: /app/persistent/storage/library
+      - key: ORIGINALS_DIR
+        value: /app/persistent/storage/originals
+      - key: PROCESSED_DIR
+        value: /app/persistent/storage/processed
+      - key: TEMP_DIR
+        value: /app/persistent/storage/temp
+      - key: STATION_CODE
+        value: PM
+      - key: POLL_INTERVAL_MS
+        value: "3000"
+      - key: MAX_UPLOAD_BYTES
+        value: "1073741824"
+      - key: MAX_ARCHIVE_FILES
+        value: "500"
+      - key: MAX_EXTRACTED_BYTES
+        value: "2147483648"
+      - key: TARGET_LUFS
+        value: "-16"
+      - key: TRUE_PEAK_DB
+        value: "-1"
+      - key: SILENCE_THRESHOLD_DB
+        value: "-45"
+      - key: SILENCE_DURATION
+        value: "0.12"
+      - key: AUTO_IMPORT_ADMIN_USER
+        value: admin
+      - key: AUTO_IMPORT_ADMIN_PASSWORD
+        generateValue: true
+      - key: AUTO_IMPORT_API_TOKEN
+        generateValue: true
+      - key: AUTO_IMPORT_SESSION_SECRET
+        generateValue: true
+    disk:
+      name: playmaster-auto-import-data
+      mountPath: /app/persistent
+      sizeGB: 10
