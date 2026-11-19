@@ -2,6 +2,8 @@ import { createHmac,createHash,randomBytes,timingSafeEqual } from 'node:crypto';
 
 export const SESSION_SECONDS=30*24*60*60;
 
+// A sessão é compartilhada entre os subdomínios oficiais do ecossistema PlayMaster.
+
 function digest(value){
   return createHash('sha256').update(String(value)).digest();
 }
