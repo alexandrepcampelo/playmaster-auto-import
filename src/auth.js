@@ -47,11 +47,11 @@ export function parseCookies(header=''){
 }
 
 export function sessionCookie(token){
-  return `pm_auto_session=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_SECONDS}`;
+  return `pm_auto_session=${encodeURIComponent(token)}; Domain=apcgestor.com.br; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_SECONDS}`;
 }
 
 export function clearSessionCookie(){
-  return 'pm_auto_session=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0';
+  return 'pm_auto_session=; Domain=apcgestor.com.br; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0';
 }
 
 export class LoginLimiter{
